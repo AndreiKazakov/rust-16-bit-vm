@@ -1,15 +1,15 @@
 use crate::parser_combinator::core;
 use crate::parser_combinator::string;
 
-fn move_lit_to_reg<'a>() -> impl core::Parser<str, Typed<'a, Instruction2<'a>>> {
+fn move_lit_to_reg<'a>() -> core::Parser<'a, str, Typed<'a, Instruction2<'a>>> {
     core::map(
         core::sequence_of(vec![
-            Box::new(to_typed("", string::literal("mov".to_string()))),
-            Box::new(to_typed("", whitespace())),
-            Box::new(parse_hex_literal()),
-            Box::new(to_typed("", whitespace())),
-            Box::new(parse_register()),
-            Box::new(to_typed("", optional_whitespace())),
+            to_typed("", string::literal("mov".to_string())),
+            to_typed("", whitespace()),
+            parse_hex_literal(),
+            to_typed("", whitespace()),
+            parse_register(),
+            to_typed("", optional_whitespace()),
         ]),
         |res| {
             as_typed(
@@ -23,15 +23,15 @@ fn move_lit_to_reg<'a>() -> impl core::Parser<str, Typed<'a, Instruction2<'a>>> 
     )
 }
 
-fn optional_whitespace<'a>() -> impl core::Parser<str, String> {
+fn optional_whitespace<'a>() -> core::Parser<'a, str, String> {
     core::map(core::zero_or_more(string::character(' ')), |s| s.join(""))
 }
 
-fn whitespace<'a>() -> impl core::Parser<str, String> {
+fn whitespace<'a>() -> core::Parser<'a, str, String> {
     core::map(core::one_or_more(string::character(' ')), |s| s.join(""))
 }
 
-fn parse_register<'a>() -> impl core::Parser<str, Typed<'a, String>> {
+fn parse_register<'a>() -> core::Parser<'a, str, Typed<'a, String>> {
     core::map(
         core::one_of(vec![
             string::literal(String::from("IP")),
@@ -51,12 +51,9 @@ fn parse_register<'a>() -> impl core::Parser<str, Typed<'a, String>> {
     )
 }
 
-fn parse_hex_literal<'a>() -> impl core::Parser<str, Typed<'a, String>> {
+fn parse_hex_literal<'a>() -> core::Parser<'a, str, Typed<'a, String>> {
     core::map(
-        core::sequence_of(vec![
-            Box::new(string::character('$')),
-            Box::new(string::hexadecimal()),
-        ]),
+        core::sequence_of(vec![string::character('$'), string::hexadecimal()]),
         |s| as_typed("Hex Literal", s.join("")),
     )
 }
@@ -80,12 +77,11 @@ fn as_typed<T>(assembly_type: &str, value: T) -> Typed<T> {
     }
 }
 
-fn to_typed<P, Input, Output>(
-    assembly_type: &str,
-    parser: P,
-) -> impl core::Parser<Input, Typed<Output>>
+fn to_typed<'a, Input, Output>(
+    assembly_type: &'a str,
+    parser: core::Parser<'a, Input, Output>,
+) -> core::Parser<'a, Input, Typed<'a, Output>>
 where
-    P: core::Parser<Input, Output>,
     Input: core::ParseInput + ?Sized,
 {
     core::map(parser, move |res| as_typed(assembly_type, res))
@@ -93,7 +89,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::parser_combinator::core::{Parser, ParserState};
+    use crate::parser_combinator::core::ParserState;
 
     #[test]
     fn parse_register() {

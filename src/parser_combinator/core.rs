@@ -23,73 +23,72 @@ impl<T> ParseInput for [T] {
     }
 }
 
-pub trait Parser<Input, Output>
+pub struct Parser<'a, Input: ?Sized + ParseInput, Output: 'a> {
+    fun: Box<dyn Fn(&'a Input) -> ParseResult<Output> + 'a>,
+}
+
+impl<'a, Input, Output> Parser<'a, Input, Output>
 where
     Input: ?Sized + ParseInput,
 {
-    fn parse_slice(&self, slice: &Input) -> ParseResult<Output>;
-    fn parse(&self, input: &Input) -> ParseResult<Output> {
-        self.parse_at(input, 0)
+    pub fn new<F>(fun: F) -> Parser<'a, Input, Output>
+    where
+        F: Fn(&'a Input) -> ParseResult<Output> + 'a,
+    {
+        Parser { fun: Box::new(fun) }
     }
-    fn parse_at(&self, input: &Input, index: usize) -> ParseResult<Output> {
+    pub fn parse(&self, slice: &'a Input) -> ParseResult<Output> {
+        (self.fun)(slice)
+    }
+    fn parse_at(&self, input: &'a Input, index: usize) -> ParseResult<Output> {
         input
             .get_from(index)
             .ok_or_else(|| String::from("End of line"))
-            .and_then(|x: &Input| self.parse_slice(x))
+            .and_then(|x: &'a Input| self.parse(x))
             .map(|state| ParserState {
                 index: state.index + index,
                 ..state
             })
     }
 }
-impl<F, Input, Output> Parser<Input, Output> for F
-where
-    F: Fn(&Input) -> ParseResult<Output>,
-    Input: ?Sized + ParseInput,
-{
-    fn parse_slice(&self, slice: &Input) -> ParseResult<Output> {
-        self(slice)
-    }
-}
 
-pub fn map<P, F, Input, A, B>(parser: P, map_fn: F) -> impl Parser<Input, B>
+pub fn map<'a, F, Input, A, B>(parser: Parser<'a, Input, A>, map_fn: F) -> Parser<'a, Input, B>
 where
-    P: Parser<Input, A>,
-    F: Fn(A) -> B,
+    F: Fn(A) -> B + 'a,
     Input: ?Sized + ParseInput,
 {
-    move |input: &Input| {
-        parser.parse_slice(input).map(|state| ParserState {
+    Parser::new(move |input| {
+        parser.parse(input).map(|state| ParserState {
             result: map_fn(state.result),
             index: state.index,
         })
-    }
+    })
 }
 
-fn map_err<P, F, Input, Output>(parser: P, err_map_fn: F) -> impl Parser<Input, Output>
+fn map_err<'a, F, Input, Output>(
+    parser: Parser<'a, Input, Output>,
+    err_map_fn: F,
+) -> Parser<'a, Input, Output>
 where
-    P: Parser<Input, Output>,
-    F: Fn(ParseError) -> ParseError,
+    F: Fn(ParseError) -> ParseError + 'a,
     Input: ?Sized + ParseInput,
 {
-    move |input: &Input| parser.parse_slice(input).map_err(|err| err_map_fn(err))
+    Parser::new(move |input| parser.parse(input).map_err(|err| err_map_fn(err)))
 }
 
-fn and_then<P, F, Input, A, B>(parser: P, chain_fn: F) -> impl Parser<Input, B>
+fn and_then<'a, F, Input, A, B>(parser: Parser<'a, Input, A>, chain_fn: F) -> Parser<'a, Input, B>
 where
-    P: Parser<Input, A>,
-    F: Fn(ParserState<A>) -> ParseResult<B>,
+    F: Fn(ParserState<A>) -> ParseResult<B> + 'a,
     Input: ?Sized + ParseInput,
 {
-    move |input: &Input| parser.parse_slice(input).and_then(|state| chain_fn(state))
+    Parser::new(move |input| parser.parse(input).and_then(|state| chain_fn(state)))
 }
 
-pub fn zero_or_more<P, Input, Output>(parser: P) -> impl Parser<Input, Vec<Output>>
+pub fn zero_or_more<Input, Output>(parser: Parser<Input, Output>) -> Parser<Input, Vec<Output>>
 where
-    P: Parser<Input, Output>,
     Input: ?Sized + ParseInput,
 {
-    move |input: &Input| {
+    Parser::new(move |input| {
         let mut result = Vec::new();
         let mut index = 0;
 
@@ -98,12 +97,11 @@ where
             index = state.index;
         }
         Ok(ParserState { result, index })
-    }
+    })
 }
 
-pub fn one_or_more<P, Input, Output>(parser: P) -> impl Parser<Input, Vec<Output>>
+pub fn one_or_more<Input, Output>(parser: Parser<Input, Output>) -> Parser<Input, Vec<Output>>
 where
-    P: Parser<Input, Output>,
     Input: ?Sized + ParseInput,
 {
     and_then(zero_or_more(parser), |state| {
@@ -115,13 +113,11 @@ where
     })
 }
 
-pub fn sequence_of<Input, Output>(
-    parsers: Vec<Box<dyn Parser<Input, Output>>>,
-) -> impl Parser<Input, Vec<Output>>
+pub fn sequence_of<Input, Output>(parsers: Vec<Parser<Input, Output>>) -> Parser<Input, Vec<Output>>
 where
     Input: ?Sized + ParseInput,
 {
-    move |input: &Input| {
+    Parser::new(move |input| {
         let mut i = 0;
         let mut results = Vec::with_capacity(parsers.len());
 
@@ -139,15 +135,14 @@ where
             result: results,
             index: i,
         })
-    }
+    })
 }
 
-pub fn one_of<P, Input, Output>(parsers: Vec<P>) -> impl Parser<Input, Output>
+pub fn one_of<Input, Output>(parsers: Vec<Parser<Input, Output>>) -> Parser<Input, Output>
 where
-    P: Parser<Input, Output>,
     Input: ?Sized + ParseInput,
 {
-    move |input: &Input| {
+    Parser::new(move |input| {
         for p in parsers.iter() {
             match p.parse(&input) {
                 Err(_) => continue,
@@ -155,7 +150,7 @@ where
             }
         }
         Err(String::from("Could not match any parsers"))
-    }
+    })
 }
 
 #[cfg(test)]
@@ -165,14 +160,14 @@ mod tests {
         Parser, ParserState,
     };
 
-    fn parse_char(ch: char) -> impl Parser<str, ()> {
-        move |input: &str| match input.chars().next() {
+    fn parse_char<'a>(ch: char) -> Parser<'a, str, ()> {
+        Parser::new(move |input: &str| match input.chars().next() {
             Some(c) if c == ch => Ok(ParserState {
                 index: 1,
                 result: (),
             }),
             _ => Err(String::from("nope")),
-        }
+        })
     }
 
     #[test]
@@ -282,12 +277,7 @@ mod tests {
     #[test]
     fn test_sequence_of() {
         assert_eq!(
-            sequence_of(vec![
-                Box::new(parse_char('a')),
-                Box::new(parse_char('b')),
-                Box::new(parse_char('c')),
-            ])
-            .parse("abcd"),
+            sequence_of(vec![parse_char('a'), parse_char('b'), parse_char('c'),]).parse("abcd"),
             Ok(ParserState {
                 index: 3,
                 result: vec![(), (), ()]

@@ -1,13 +1,13 @@
 use super::core::{map, one_of, one_or_more, Parser, ParserState};
 
-pub fn literal(expected: String) -> impl Parser<str, String> {
-    move |input: &str| match input.get(0..expected.len()) {
+pub fn literal<'a>(expected: String) -> Parser<'a, str, String> {
+    Parser::new(move |input: &str| match input.get(0..expected.len()) {
         Some(next) if next == expected => Ok(ParserState {
             index: expected.len(),
             result: expected.clone(),
         }),
         _ => Err(format!("Could not match literal: \"{}\"", expected)),
-    }
+    })
 }
 
 // pub fn literal_<'a>(expected: &'a str) -> impl Parser<str, String> {
@@ -20,31 +20,31 @@ pub fn literal(expected: String) -> impl Parser<str, String> {
 //     }
 // }
 
-pub fn character(c: char) -> impl Parser<str, String> {
-    move |input: &str| match input.chars().next() {
+pub fn character<'a>(c: char) -> Parser<'a, str, String> {
+    Parser::new(move |input: &str| match input.chars().next() {
         Some(ch) if ch == c => Ok(ParserState {
             index: 1,
             result: c.to_string(),
         }),
         Some(ch) => Err(format!("Expected {} found {}", c, ch)),
         None => Err("Unexpected end of line".to_string()),
-    }
+    })
 }
 
-pub fn hexadecimal() -> impl Parser<str, String> {
+pub fn hexadecimal<'a>() -> Parser<'a, str, String> {
     map(
-        one_or_more(move |input: &str| match input.chars().next() {
+        one_or_more(Parser::new(|input: &str| match input.chars().next() {
             Some(c) if c.is_ascii_hexdigit() => Ok(ParserState {
                 index: 1,
                 result: c,
             }),
             _ => Err("Not a hex digit".to_string()),
-        }),
+        })),
         |v| v.iter().collect(),
     )
 }
 
-pub fn upper_or_lower(s: String) -> impl Parser<str, String> {
+pub fn upper_or_lower<'a>(s: String) -> Parser<'a, str, String> {
     map(
         one_of(vec![literal(s.to_lowercase()), literal(s.to_uppercase())]),
         move |_| s.clone(),
@@ -53,7 +53,7 @@ pub fn upper_or_lower(s: String) -> impl Parser<str, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{literal, upper_or_lower, Parser, ParserState};
+    use super::{literal, upper_or_lower, ParserState};
 
     #[test]
     fn literal_parser() {
@@ -63,19 +63,18 @@ mod tests {
                 index: 10,
                 result: String::from("Hello Joe!")
             }),
-            parse_joe.parse(&String::from("Hello Joe!"))
+            parse_joe.parse("Hello Joe!")
         );
-        let string = String::from("Hello Joe! Hello Robert!");
         assert_eq!(
             Ok(ParserState {
                 index: 10,
                 result: String::from("Hello Joe!")
             }),
-            parse_joe.parse(&string)
+            parse_joe.parse("Hello Joe! Hello Robert!")
         );
         assert_eq!(
             Err(String::from("Could not match literal: \"Hello Joe!\"")),
-            parse_joe.parse(&String::from("Hello Mike!"))
+            parse_joe.parse("Hello Mike!")
         );
     }
 
@@ -87,14 +86,14 @@ mod tests {
                 index: 4,
                 result: String::from("joe!")
             }),
-            parse_joe.parse(&String::from("JOE!"))
+            parse_joe.parse("JOE!")
         );
         assert_eq!(
             Ok(ParserState {
                 index: 4,
                 result: String::from("joe!")
             }),
-            parse_joe.parse(&String::from("joe!"))
+            parse_joe.parse("joe!")
         );
     }
 

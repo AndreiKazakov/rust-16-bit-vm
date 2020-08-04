@@ -1,13 +1,13 @@
 use super::core::{Parser, ParserState};
 
-fn match_literal(expected: &[u8]) -> impl Parser<[u8], ()> + '_ {
-    move |input: &[u8]| match input.get(0..expected.len()) {
+fn match_literal(expected: &[u8]) -> Parser<[u8], ()> {
+    Parser::new(move |input: &[u8]| match input.get(0..expected.len()) {
         Some(next) if next == expected => Ok(ParserState {
             index: expected.len(),
             result: (),
         }),
         _ => Err(format!("Could not match literal: {:?}", expected)),
-    }
+    })
 }
 
 #[test]

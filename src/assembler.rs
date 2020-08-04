@@ -1,61 +1,55 @@
-use crate::parser_combinator::core;
+use crate::parser_combinator::core::{ParseInput, Parser};
 use crate::parser_combinator::string;
 
-fn move_lit_to_reg<'a>() -> core::Parser<'a, str, Typed<'a, Instruction2<'a>>> {
-    core::map(
-        core::sequence_of(vec![
-            to_typed("", string::literal("mov".to_string())),
-            to_typed("", whitespace()),
-            parse_hex_literal(),
-            to_typed("", whitespace()),
-            parse_register(),
-            to_typed("", optional_whitespace()),
-        ]),
-        |res| {
-            as_typed(
-                "Instruction",
-                Instruction2 {
-                    instruction: "MOVE_LIT_REG",
-                    args: (res[2].value.to_owned(), res[4].value.to_owned()),
-                },
-            )
-        },
-    )
+fn move_lit_to_reg<'a>() -> Parser<'a, str, Typed<'a, Instruction2<'a>>> {
+    Parser::sequence_of(vec![
+        to_typed("", string::literal("mov".to_string())),
+        to_typed("", whitespace()),
+        parse_hex_literal(),
+        to_typed("", whitespace()),
+        parse_register(),
+        to_typed("", optional_whitespace()),
+    ])
+    .map(|res| {
+        as_typed(
+            "Instruction",
+            Instruction2 {
+                instruction: "MOVE_LIT_REG",
+                args: (res[2].value.to_owned(), res[4].value.to_owned()),
+            },
+        )
+    })
 }
 
-fn optional_whitespace<'a>() -> core::Parser<'a, str, String> {
-    core::map(core::zero_or_more(string::character(' ')), |s| s.join(""))
+fn optional_whitespace<'a>() -> Parser<'a, str, String> {
+    string::character(' ').zero_or_more().map(|s| s.join(""))
 }
 
-fn whitespace<'a>() -> core::Parser<'a, str, String> {
-    core::map(core::one_or_more(string::character(' ')), |s| s.join(""))
+fn whitespace<'a>() -> Parser<'a, str, String> {
+    string::character(' ').one_or_more().map(|s| s.join(""))
 }
 
-fn parse_register<'a>() -> core::Parser<'a, str, Typed<'a, String>> {
-    core::map(
-        core::one_of(vec![
-            string::literal(String::from("IP")),
-            string::literal(String::from("ACC")),
-            string::literal(String::from("R1")),
-            string::literal(String::from("R2")),
-            string::literal(String::from("R3")),
-            string::literal(String::from("R4")),
-            string::literal(String::from("R5")),
-            string::literal(String::from("R6")),
-            string::literal(String::from("R7")),
-            string::literal(String::from("R8")),
-            string::literal(String::from("SP")),
-            string::literal(String::from("FP")),
-        ]),
-        |reg| as_typed("Register", reg),
-    )
+fn parse_register<'a>() -> Parser<'a, str, Typed<'a, String>> {
+    Parser::one_of(vec![
+        string::literal(String::from("IP")),
+        string::literal(String::from("ACC")),
+        string::literal(String::from("R1")),
+        string::literal(String::from("R2")),
+        string::literal(String::from("R3")),
+        string::literal(String::from("R4")),
+        string::literal(String::from("R5")),
+        string::literal(String::from("R6")),
+        string::literal(String::from("R7")),
+        string::literal(String::from("R8")),
+        string::literal(String::from("SP")),
+        string::literal(String::from("FP")),
+    ])
+    .map(|reg| as_typed("Register", reg))
 }
 
-fn parse_hex_literal<'a>() -> core::Parser<'a, str, Typed<'a, String>> {
-    core::map(
-        core::sequence_of(vec![string::character('$'), string::hexadecimal()]),
-        |s| as_typed("Hex Literal", s.join("")),
-    )
+fn parse_hex_literal<'a>() -> Parser<'a, str, Typed<'a, String>> {
+    Parser::sequence_of(vec![string::character('$'), string::hexadecimal()])
+        .map(|s| as_typed("Hex Literal", s.join("")))
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -79,12 +73,12 @@ fn as_typed<T>(assembly_type: &str, value: T) -> Typed<T> {
 
 fn to_typed<'a, Input, Output>(
     assembly_type: &'a str,
-    parser: core::Parser<'a, Input, Output>,
-) -> core::Parser<'a, Input, Typed<'a, Output>>
+    parser: Parser<'a, Input, Output>,
+) -> Parser<'a, Input, Typed<'a, Output>>
 where
-    Input: core::ParseInput + ?Sized,
+    Input: ParseInput + ?Sized,
 {
-    core::map(parser, move |res| as_typed(assembly_type, res))
+    parser.map(move |res| as_typed(assembly_type, res))
 }
 
 #[cfg(test)]

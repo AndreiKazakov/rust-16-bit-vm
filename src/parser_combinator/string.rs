@@ -1,4 +1,4 @@
-use super::core::{map, one_of, one_or_more, Parser, ParserState};
+use super::core::{Parser, ParserState};
 
 pub fn literal<'a>(expected: String) -> Parser<'a, str, String> {
     Parser::new(move |input: &str| match input.get(0..expected.len()) {
@@ -32,23 +32,20 @@ pub fn character<'a>(c: char) -> Parser<'a, str, String> {
 }
 
 pub fn hexadecimal<'a>() -> Parser<'a, str, String> {
-    map(
-        one_or_more(Parser::new(|input: &str| match input.chars().next() {
-            Some(c) if c.is_ascii_hexdigit() => Ok(ParserState {
-                index: 1,
-                result: c,
-            }),
-            _ => Err("Not a hex digit".to_string()),
-        })),
-        |v| v.iter().collect(),
-    )
+    Parser::new(|input: &str| match input.chars().next() {
+        Some(c) if c.is_ascii_hexdigit() => Ok(ParserState {
+            index: 1,
+            result: c,
+        }),
+        _ => Err("Not a hex digit".to_string()),
+    })
+    .one_or_more()
+    .map(|v| v.iter().collect())
 }
 
 pub fn upper_or_lower<'a>(s: String) -> Parser<'a, str, String> {
-    map(
-        one_of(vec![literal(s.to_lowercase()), literal(s.to_uppercase())]),
-        move |_| s.clone(),
-    )
+    Parser::one_of(vec![literal(s.to_lowercase()), literal(s.to_uppercase())])
+        .map(move |_| s.clone())
 }
 
 #[cfg(test)]

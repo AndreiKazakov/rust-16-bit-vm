@@ -43,6 +43,18 @@ pub fn hexadecimal<'a>() -> Parser<'a, str, String> {
     .map(|v| v.iter().collect())
 }
 
+pub fn alphabetic<'a>() -> Parser<'a, str, String> {
+    Parser::new(|input: &str| match input.chars().next() {
+        Some(c) if c.is_alphabetic() => Ok(ParserState {
+            index: 1,
+            result: c,
+        }),
+        _ => Err("Not an alphabetic character".to_string()),
+    })
+    .one_or_more()
+    .map(|v| v.iter().collect())
+}
+
 pub fn upper_or_lower<'a>(s: String) -> Parser<'a, str, String> {
     Parser::one_of(vec![literal(s.to_lowercase()), literal(s.to_uppercase())])
         .map(move |_| s.clone())

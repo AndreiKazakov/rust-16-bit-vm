@@ -121,3 +121,12 @@ mod tests {
         )
     }
 }
+
+pub fn optional_whitespace<'a>() -> Parser<'a, str, String> {
+    character(' ').zero_or_more().map(|s| s.join(""))
+}
+
+pub fn whitespace<'a>() -> Parser<'a, str, String> {
+    character(' ').one_or_more().map(|s| s.join(""))
+}
+

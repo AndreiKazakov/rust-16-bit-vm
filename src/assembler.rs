@@ -1,33 +1,27 @@
 use crate::parser_combinator::core::Parser;
 use crate::parser_combinator::string;
-mod typed;
-use typed::{IntoTyped, Type, Typed};
-mod instruction;
-use instruction::{Instruction, Instruction2};
 
-fn move_lit_to_reg<'a>() -> Parser<'a, str, Typed<Instruction2>> {
+fn move_lit_to_reg<'a>() -> Parser<'a, str, Type> {
     Parser::sequence_of(vec![
-        string::literal("mov".to_string()).into_typed(Type::Ignored),
-        string::whitespace().into_typed(Type::Ignored),
+        string::literal("mov".to_string()).map(|_| Type::Ignored),
+        string::whitespace().map(|_| Type::Ignored),
         parse_hex_literal(),
-        string::whitespace().into_typed(Type::Ignored),
+        string::whitespace().map(|_| Type::Ignored),
         parse_register(),
-        string::optional_whitespace().into_typed(Type::Ignored),
+        string::optional_whitespace().map(|_| Type::Ignored),
     ])
     .map(|mut res| {
         let second = res.remove(4);
         let first = res.remove(2);
-        Typed::new(
-            Type::Instruction,
-            Instruction2 {
-                instruction: Instruction::MoveLitReg,
-                args: (first, second),
-            },
-        )
+        Type::Instruction2 {
+            instruction: Instruction::MoveLitReg,
+            arg0: Box::new(first),
+            arg1: Box::new(second),
+        }
     })
 }
 
-fn parse_register<'a>() -> Parser<'a, str, Typed<String>> {
+fn parse_register<'a>() -> Parser<'a, str, Type> {
     Parser::one_of(vec![
         string::literal(String::from("IP")),
         string::literal(String::from("ACC")),
@@ -42,22 +36,40 @@ fn parse_register<'a>() -> Parser<'a, str, Typed<String>> {
         string::literal(String::from("SP")),
         string::literal(String::from("FP")),
     ])
-    .map(|reg| Typed::new(Type::Register, reg))
+    .map(|reg| Type::Register(reg))
 }
 
-fn parse_hex_literal<'a>() -> Parser<'a, str, Typed<String>> {
+fn parse_hex_literal<'a>() -> Parser<'a, str, Type> {
     Parser::sequence_of(vec![string::character('$'), string::hexadecimal()])
-        .map(|s| Typed::new(Type::HexLiteral, s[1].to_owned()))
+        .map(|s| Type::HexLiteral(s[1].to_owned()))
 }
 
-fn parse_variable<'a>() -> Parser<'a, str, Typed<String>> {
+fn parse_variable<'a>() -> Parser<'a, str, Type> {
     Parser::sequence_of(vec![string::character('!'), string::alphabetic()])
-        .map(|s| Typed::new(Type::Variable, s[1].to_owned()))
+        .map(|s| Type::Variable(s[1].to_owned()))
+}
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub enum Type {
+    Instruction2 {
+        instruction: Instruction,
+        arg0: Box<Type>,
+        arg1: Box<Type>,
+    },
+    Ignored,
+    HexLiteral(String),
+    Variable(String),
+    Register(String),
+}
+
+#[derive(Eq, PartialEq, Debug, Copy, Clone)]
+pub enum Instruction {
+    MoveLitReg,
 }
 
 #[cfg(test)]
 mod tests {
-    use super::Instruction;
+    use super::{Instruction, Type};
     use crate::parser_combinator::core::ParserState;
 
     #[test]
@@ -66,10 +78,7 @@ mod tests {
             super::parse_register().parse("R1"),
             Ok(ParserState {
                 index: 2,
-                result: super::Typed {
-                    assembly_type: super::Type::Register,
-                    value: String::from("R1")
-                }
+                result: Type::Register(String::from("R1"))
             })
         )
     }
@@ -80,10 +89,7 @@ mod tests {
             super::parse_hex_literal().parse("$aa12"),
             Ok(ParserState {
                 index: 5,
-                result: super::Typed {
-                    assembly_type: super::Type::HexLiteral,
-                    value: String::from("aa12")
-                }
+                result: Type::HexLiteral(String::from("aa12"))
             })
         )
     }
@@ -94,21 +100,10 @@ mod tests {
             super::move_lit_to_reg().parse("mov $aa12 R1"),
             Ok(ParserState {
                 index: 12,
-                result: super::Typed {
-                    assembly_type: super::Type::Instruction,
-                    value: super::Instruction2 {
-                        instruction: Instruction::MoveLitReg,
-                        args: (
-                            super::Typed {
-                                value: "aa12".to_string(),
-                                assembly_type: super::Type::HexLiteral
-                            },
-                            super::Typed {
-                                value: "R1".to_string(),
-                                assembly_type: super::Type::Register
-                            }
-                        )
-                    }
+                result: Type::Instruction2 {
+                    instruction: Instruction::MoveLitReg,
+                    arg0: Box::new(Type::HexLiteral("aa12".to_string())),
+                    arg1: Box::new(Type::Register("R1".to_string()))
                 }
             })
         )

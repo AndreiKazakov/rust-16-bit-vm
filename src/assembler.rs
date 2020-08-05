@@ -2,17 +2,17 @@ use crate::parser_combinator::core::Parser;
 use crate::parser_combinator::string;
 
 fn move_lit_to_reg<'a>() -> Parser<'a, str, Type> {
-    Parser::sequence_of(vec![
-        string::literal("mov".to_string()).map(|_| Type::Ignored),
-        string::whitespace().map(|_| Type::Ignored),
-        parse_hex_literal(),
-        string::whitespace().map(|_| Type::Ignored),
-        parse_register(),
-        string::optional_whitespace().map(|_| Type::Ignored),
-    ])
+    Parser::interspersed(
+        string::whitespace(),
+        vec![
+            string::literal("mov".to_string()).map(|_| Type::Ignored),
+            parse_hex_literal(),
+            parse_register().left(string::optional_whitespace()),
+        ],
+    )
     .map(|mut res| {
-        let second = res.remove(4);
-        let first = res.remove(2);
+        let second = res.remove(2);
+        let first = res.remove(1);
         Type::Instruction2 {
             instruction: Instruction::MoveLitReg,
             arg0: Box::new(first),
@@ -36,17 +36,19 @@ fn parse_register<'a>() -> Parser<'a, str, Type> {
         string::literal(String::from("SP")),
         string::literal(String::from("FP")),
     ])
-    .map(|reg| Type::Register(reg))
+    .map(Type::Register)
 }
 
 fn parse_hex_literal<'a>() -> Parser<'a, str, Type> {
-    Parser::sequence_of(vec![string::character('$'), string::hexadecimal()])
-        .map(|s| Type::HexLiteral(s[1].to_owned()))
+    string::character('$')
+        .right(string::hexadecimal())
+        .map(Type::HexLiteral)
 }
 
 fn parse_variable<'a>() -> Parser<'a, str, Type> {
-    Parser::sequence_of(vec![string::character('!'), string::alphabetic()])
-        .map(|s| Type::Variable(s[1].to_owned()))
+    string::character('!')
+        .right(string::alphabetic())
+        .map(Type::Variable)
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -90,6 +92,17 @@ mod tests {
             Ok(ParserState {
                 index: 5,
                 result: Type::HexLiteral(String::from("aa12"))
+            })
+        )
+    }
+
+    #[test]
+    fn parse_variable() {
+        assert_eq!(
+            super::parse_variable().parse("!aaj"),
+            Ok(ParserState {
+                index: 4,
+                result: Type::Variable(String::from("aaj"))
             })
         )
     }

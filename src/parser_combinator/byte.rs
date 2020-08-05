@@ -1,4 +1,4 @@
-use super::core::{Parser, ParserState};
+use super::core::{ParseError, Parser, ParserState};
 
 fn match_literal(expected: &[u8]) -> Parser<[u8], ()> {
     Parser::new(move |input: &[u8]| match input.get(0..expected.len()) {
@@ -6,7 +6,10 @@ fn match_literal(expected: &[u8]) -> Parser<[u8], ()> {
             index: expected.len(),
             result: (),
         }),
-        _ => Err(format!("Could not match literal: {:?}", expected)),
+        _ => Err(ParseError::new(format!(
+            "Could not match literal: {:?}",
+            expected
+        ))),
     })
 }
 
@@ -30,8 +33,8 @@ fn literal_parser() {
     );
     assert_eq!(
         parse_joe.parse(b"Hello Mike!"),
-        Err(String::from(
+        Err(ParseError::new(String::from(
             "Could not match literal: [72, 101, 108, 108, 111, 32, 74, 111, 101, 33]"
-        )),
+        ),)),
     );
 }

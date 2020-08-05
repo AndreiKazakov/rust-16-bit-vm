@@ -1,4 +1,4 @@
-use std::ops::{Index, RangeFrom};
+use std::ops::{Index, Range};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ParserState<T> {
@@ -6,10 +6,19 @@ pub struct ParserState<T> {
     pub result: T,
 }
 
-pub type ParseError = String;
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ParseError {
+    pub message: String,
+    pub index: usize,
+}
+impl ParseError {
+    pub fn new(message: String) -> ParseError {
+        ParseError { message, index: 0 }
+    }
+}
 pub type ParseResult<Output> = Result<ParserState<Output>, ParseError>;
 
-pub trait ParseInput: Index<RangeFrom<usize>, Output = Self> {
+pub trait ParseInput: Index<Range<usize>, Output = Self> {
     fn get_from(&self, i: usize) -> Option<&Self>;
 }
 impl ParseInput for str {
@@ -39,14 +48,18 @@ impl<'a, I: ?Sized + ParseInput, O> Parser<'a, I, O> {
         (self.fun)(slice)
     }
 
-    fn parse_at(&self, input: &'a I, index: usize) -> ParseResult<O> {
+    pub fn parse_at(&self, input: &'a I, index: usize) -> ParseResult<O> {
         input
             .get_from(index)
-            .ok_or_else(|| String::from("End of line"))
+            .ok_or_else(|| ParseError::new(String::from("End of line")))
             .and_then(|x: &I| self.parse(x))
             .map(|state| ParserState {
                 index: state.index + index,
                 ..state
+            })
+            .map_err(|err| ParseError {
+                message: err.message,
+                index: index + err.index,
             })
     }
 
@@ -92,7 +105,7 @@ impl<'a, I: ?Sized + ParseInput, O> Parser<'a, I, O> {
     pub fn one_or_more(self) -> Parser<'a, I, Vec<O>> {
         self.zero_or_more().and_then(|state| {
             if state.result.is_empty() {
-                Err(format!("Could not match one or more at {}", state.index))
+                Err(ParseError::new(String::from("Could not match one or more")))
             } else {
                 Ok(state)
             }
@@ -188,20 +201,30 @@ impl<'a, I: ?Sized + ParseInput, O> Parser<'a, I, O> {
 
     pub fn one_of(parsers: Vec<Parser<I, O>>) -> Parser<I, O> {
         Parser::new(move |input| {
+            let mut errors = Vec::with_capacity(parsers.len());
             for p in parsers.iter() {
                 match p.parse(&input) {
-                    Err(_) => continue,
+                    Err(err) => errors.push(err),
                     result @ Ok(_) => return result,
                 }
             }
-            Err(String::from("Could not match any parsers"))
+            Err(ParseError::new(
+                format!(
+                    "Could not match any parsers:\n{}",
+                    errors
+                        .iter()
+                        .map(|err| format!("\t{}\n", err.message))
+                        .collect::<String>(),
+                )
+                .to_string(),
+            ))
         })
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{ParseResult, Parser, ParserState};
+    use super::{ParseError, ParseResult, Parser, ParserState};
 
     fn parse_char<'a>(ch: char) -> Parser<'a, str, char> {
         Parser::new(move |input: &str| match input.chars().next() {
@@ -209,7 +232,7 @@ mod tests {
                 index: 1,
                 result: ch,
             }),
-            _ => Err(String::from("nope")),
+            _ => Err(ParseError::new(String::from("nope"))),
         })
     }
 
@@ -250,9 +273,9 @@ mod tests {
     fn map_err() {
         assert_eq!(
             parse_char('a')
-                .map_err(|string: String| string.replace("no", "yu"))
+                .map_err(|err| ParseError::new(err.message.replace("no", "yu")))
                 .parse("zzz"),
-            Err("yupe".to_string())
+            Err(ParseError::new("yupe".to_string()))
         )
     }
 
@@ -277,13 +300,13 @@ mod tests {
                     result: "bbb"
                 }))
                 .parse("zzz"),
-            Err("nope".to_string())
+            Err(ParseError::new("nope".to_string()))
         );
         assert_eq!(
             parse_char('a')
-                .and_then(|_| -> ParseResult<i8> { Err(String::from("aaaaa")) })
+                .and_then(|_| -> ParseResult<i8> { Err(ParseError::new(String::from("aaaaa"))) })
                 .parse("azzz"),
-            Err(String::from("aaaaa"))
+            Err(ParseError::new(String::from("aaaaa")))
         );
     }
 
@@ -316,7 +339,7 @@ mod tests {
         );
         assert_eq!(
             parse_char('a').one_or_more().parse("bbb"),
-            Err(String::from("Could not match one or more at 0"))
+            Err(ParseError::new(String::from("Could not match one or more"),))
         );
     }
 

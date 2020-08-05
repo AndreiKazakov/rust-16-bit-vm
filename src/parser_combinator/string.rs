@@ -1,4 +1,4 @@
-use super::core::{Parser, ParserState};
+use super::core::{ParseError, Parser, ParserState};
 
 pub fn literal<'a>(expected: String) -> Parser<'a, str, String> {
     Parser::new(move |input: &str| match input.get(0..expected.len()) {
@@ -6,7 +6,10 @@ pub fn literal<'a>(expected: String) -> Parser<'a, str, String> {
             index: expected.len(),
             result: expected.clone(),
         }),
-        _ => Err(format!("Could not match literal: \"{}\"", expected)),
+        _ => Err(ParseError::new(format!(
+            "Could not match literal: \"{}\"",
+            expected
+        ))),
     })
 }
 
@@ -16,7 +19,7 @@ pub fn literal<'a>(expected: String) -> Parser<'a, str, String> {
 //             index: expected.len(),
 //             result: expected.to_string(),
 //         }),
-//         _ => Err(format!("Could not match literal: \"{}\"", expected)),
+//         _ => Err(ParseError::new(format!("Could not match literal: \"{}\"", expected))),
 //     }
 // }
 
@@ -26,8 +29,8 @@ pub fn character<'a>(c: char) -> Parser<'a, str, String> {
             index: 1,
             result: c.to_string(),
         }),
-        Some(ch) => Err(format!("Expected {} found {}", c, ch)),
-        None => Err("Unexpected end of line".to_string()),
+        Some(ch) => Err(ParseError::new(format!("Expected '{}' found '{}'", c, ch))),
+        None => Err(ParseError::new("Unexpected end of line".to_string())),
     })
 }
 
@@ -37,7 +40,7 @@ pub fn hexadecimal<'a>() -> Parser<'a, str, String> {
             index: 1,
             result: c,
         }),
-        _ => Err("Not a hex digit".to_string()),
+        _ => Err(ParseError::new("Not a hex digit".to_string())),
     })
     .one_or_more()
     .map(|v| v.iter().collect())
@@ -49,7 +52,7 @@ pub fn alphabetic<'a>() -> Parser<'a, str, String> {
             index: 1,
             result: c,
         }),
-        _ => Err("Not an alphabetic character".to_string()),
+        _ => Err(ParseError::new("Not an alphabetic character".to_string())),
     })
     .one_or_more()
     .map(|v| v.iter().collect())
@@ -62,7 +65,7 @@ pub fn upper_or_lower<'a>(s: String) -> Parser<'a, str, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{literal, upper_or_lower, ParserState};
+    use super::{literal, upper_or_lower, ParseError, ParserState};
 
     #[test]
     fn literal_parser() {
@@ -82,7 +85,9 @@ mod tests {
             parse_joe.parse("Hello Joe! Hello Robert!")
         );
         assert_eq!(
-            Err(String::from("Could not match literal: \"Hello Joe!\"")),
+            Err(ParseError::new(String::from(
+                "Could not match literal: \"Hello Joe!\""
+            ))),
             parse_joe.parse("Hello Mike!")
         );
     }
@@ -117,7 +122,7 @@ mod tests {
         );
         assert_eq!(
             super::hexadecimal().parse("xxx"),
-            Err("Could not match one or more at 0".to_string())
+            Err(ParseError::new("Could not match one or more".to_string()))
         )
     }
 }
@@ -129,4 +134,3 @@ pub fn optional_whitespace<'a>() -> Parser<'a, str, String> {
 pub fn whitespace<'a>() -> Parser<'a, str, String> {
     character(' ').one_or_more().map(|s| s.join(""))
 }
-

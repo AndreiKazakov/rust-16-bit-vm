@@ -119,7 +119,12 @@ fn register<'a>() -> Parser<'a, str, Type> {
 fn hex_literal<'a>() -> Parser<'a, str, Type> {
     string::character('$')
         .right(string::hexadecimal())
-        .map(Type::HexLiteral)
+        .map(|hex| {
+            Type::HexLiteral(
+                u16::from_str_radix(&hex, 16)
+                    .expect(&format!("Couldn't parse hexadecimal: {}", hex)),
+            )
+        })
 }
 
 fn variable<'a>() -> Parser<'a, str, Type> {
@@ -155,7 +160,7 @@ pub enum Type {
         b: Box<Type>,
     },
     Ignored,
-    HexLiteral(String),
+    HexLiteral(u16),
     Variable(String),
     Register(String),
     Operator(Operator),
@@ -204,7 +209,7 @@ mod tests {
             super::hex_literal().parse("$aa12"),
             Ok(ParserState {
                 index: 5,
-                result: Type::HexLiteral(String::from("aa12")),
+                result: Type::HexLiteral(43538),
             })
         )
     }
@@ -228,7 +233,7 @@ mod tests {
                 index: 12,
                 result: Type::Instruction2 {
                     instruction: Instruction::MoveLitReg,
-                    arg0: Box::new(Type::HexLiteral("aa12".to_string())),
+                    arg0: Box::new(Type::HexLiteral(43538)),
                     arg1: Box::new(Type::Register("R1".to_string())),
                 },
             })
@@ -240,7 +245,7 @@ mod tests {
                 result: Type::Instruction2 {
                     instruction: Instruction::MoveLitReg,
                     arg0: Box::new(Type::BinaryOperation {
-                        a: Box::new(Type::HexLiteral("aa12".to_string())),
+                        a: Box::new(Type::HexLiteral(43538)),
                         op: Box::new(Type::Operator(Operator::Plus)),
                         b: Box::new(Type::Variable("a".to_string()))
                     }),
@@ -257,7 +262,7 @@ mod tests {
             Ok(ParserState {
                 index: 26,
                 result: Type::BinaryOperation {
-                    a: Box::new(Type::HexLiteral("aa12".to_string())),
+                    a: Box::new(Type::HexLiteral(43538)),
                     op: Box::new(Type::Operator(Operator::Plus)),
                     b: Box::new(Type::BinaryOperation {
                         a: Box::new(Type::BinaryOperation {
@@ -266,7 +271,7 @@ mod tests {
                             b: Box::new(Type::Variable("aa".to_string())),
                         }),
                         op: Box::new(Type::Operator(Operator::Minus)),
-                        b: Box::new(Type::HexLiteral("1".to_string())),
+                        b: Box::new(Type::HexLiteral(1)),
                     }),
                 }
             })
@@ -277,16 +282,16 @@ mod tests {
     fn group_binary_operations() {
         assert_eq!(
             super::group_binary_operations(vec![
-                Type::HexLiteral("aa12".to_string()),
+                Type::HexLiteral(43538),
                 Type::Operator(Operator::Plus),
                 Type::Variable("uu".to_string()),
                 Type::Operator(Operator::Star),
                 Type::Variable("aa".to_string()),
                 Type::Operator(Operator::Minus),
-                Type::HexLiteral("1".to_string()),
+                Type::HexLiteral(1),
             ]),
             Type::BinaryOperation {
-                a: Box::new(Type::HexLiteral("aa12".to_string())),
+                a: Box::new(Type::HexLiteral(43538)),
                 op: Box::new(Type::Operator(Operator::Plus)),
                 b: Box::new(Type::BinaryOperation {
                     a: Box::new(Type::BinaryOperation {
@@ -295,7 +300,7 @@ mod tests {
                         b: Box::new(Type::Variable("aa".to_string())),
                     }),
                     op: Box::new(Type::Operator(Operator::Minus)),
-                    b: Box::new(Type::HexLiteral("1".to_string())),
+                    b: Box::new(Type::HexLiteral(1)),
                 }),
             }
         )

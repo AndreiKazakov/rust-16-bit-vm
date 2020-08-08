@@ -21,6 +21,46 @@ fn move_lit_to_reg<'a>() -> Parser<'a, str, Type> {
     })
 }
 
+fn move_reg_to_reg<'a>() -> Parser<'a, str, Type> {
+    Parser::interspersed(
+        string::whitespace(),
+        vec![
+            string::literal("mov".to_string()).map(|_| Type::Ignored),
+            register(),
+            register().left(string::optional_whitespace()),
+        ],
+    )
+    .map(|mut res| {
+        let second = res.remove(2);
+        let first = res.remove(1);
+        Type::Instruction2 {
+            instruction: Instruction::MoveRegReg,
+            arg0: Box::new(first),
+            arg1: Box::new(second),
+        }
+    })
+}
+
+fn move_mem_to_reg<'a>() -> Parser<'a, str, Type> {
+    Parser::interspersed(
+        string::whitespace(),
+        vec![
+            string::literal("mov".to_string()).map(|_| Type::Ignored),
+            address(),
+            register().left(string::optional_whitespace()),
+        ],
+    )
+    .map(|mut res| {
+        let second = res.remove(2);
+        let first = res.remove(1);
+        Type::Instruction2 {
+            instruction: Instruction::MoveMemReg,
+            arg0: Box::new(first),
+            arg1: Box::new(second),
+        }
+    })
+}
+
 fn square_bracket_expression<'a>() -> Parser<'a, str, Type> {
     Parser::new(|input| {
         let mut index = string::character('[').parse(input)?.index;
@@ -127,6 +167,17 @@ fn hex_literal<'a>() -> Parser<'a, str, Type> {
         })
 }
 
+fn address<'a>() -> Parser<'a, str, Type> {
+    string::character('&')
+        .right(string::hexadecimal())
+        .map(|hex| {
+            Type::Address(
+                u16::from_str_radix(&hex, 16)
+                    .expect(&format!("Couldn't parse hexadecimal: {}", hex)),
+            )
+        })
+}
+
 fn variable<'a>() -> Parser<'a, str, Type> {
     string::character('!')
         .right(string::alphabetic())
@@ -161,6 +212,7 @@ pub enum Type {
     },
     Ignored,
     HexLiteral(u16),
+    Address(u16),
     Variable(String),
     Register(String),
     Operator(Operator),
@@ -169,6 +221,8 @@ pub enum Type {
 #[derive(Eq, PartialEq, Debug, Copy, Clone)]
 pub enum Instruction {
     MoveLitReg,
+    MoveRegReg,
+    MoveMemReg,
 }
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone)]

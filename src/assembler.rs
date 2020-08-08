@@ -1,6 +1,5 @@
 use crate::parser_combinator::core::{ParseError, Parser, ParserState};
 use crate::parser_combinator::string;
-use crate::parser_combinator::string::{character, optional_whitespace};
 
 fn move_lit_to_reg<'a>() -> Parser<'a, str, Type> {
     Parser::interspersed(
@@ -24,8 +23,8 @@ fn move_lit_to_reg<'a>() -> Parser<'a, str, Type> {
 
 fn square_bracket_expression<'a>() -> Parser<'a, str, Type> {
     Parser::new(|input| {
-        let mut index = character('[').parse(input)?.index;
-        index = optional_whitespace().parse_at(input, index)?.index;
+        let mut index = string::character('[').parse(input)?.index;
+        index = string::optional_whitespace().parse_at(input, index)?.index;
 
         let mut result = vec![];
         let mut expect_operator = false;
@@ -34,7 +33,7 @@ fn square_bracket_expression<'a>() -> Parser<'a, str, Type> {
             if expect_operator {
                 match input.chars().nth(index) {
                     Some(']') => {
-                        index = character(']').parse_at(input, index)?.index;
+                        index = string::character(']').parse_at(input, index)?.index;
                         break;
                     }
                     None => {
@@ -45,7 +44,9 @@ fn square_bracket_expression<'a>() -> Parser<'a, str, Type> {
                     }
                     _ => {
                         let state = operator().parse_at(input, index)?;
-                        index = optional_whitespace().parse_at(input, state.index)?.index;
+                        index = string::optional_whitespace()
+                            .parse_at(input, state.index)?
+                            .index;
                         expect_operator = false;
                         result.push(state.result);
                     }
@@ -55,16 +56,46 @@ fn square_bracket_expression<'a>() -> Parser<'a, str, Type> {
                     Parser::one_of(vec![square_bracket_expression(), hex_literal(), variable()])
                         .parse_at(input, index)?;
                 result.push(state.result);
-                index = optional_whitespace().parse_at(input, state.index)?.index;
+                index = string::optional_whitespace()
+                    .parse_at(input, state.index)?
+                    .index;
                 expect_operator = true;
             }
         }
 
         Ok(ParserState {
             index,
-            result: Type::Expression(result),
+            result: group_binary_operations(result),
         })
     })
+}
+
+fn group_binary_operations<'a>(mut expression: Vec<Type>) -> Type {
+    if expression.len() == 1 {
+        return expression.remove(0);
+    }
+
+    let mut pos = 1;
+    let mut priority = usize::MAX;
+    for i in (1..expression.len()).step_by(2) {
+        match expression[i] {
+            Type::Operator(op) if op.priority() < priority => {
+                pos = i;
+                priority = op.priority();
+            }
+            Type::Operator(_) => continue,
+            _ => panic!(),
+        }
+    }
+
+    let op = expression.remove(pos);
+    let (left, right) = expression.split_at(pos);
+
+    Type::BinaryOperation {
+        op: Box::new(op),
+        a: Box::new(group_binary_operations(left.to_vec())),
+        b: Box::new(group_binary_operations(right.to_vec())),
+    }
 }
 
 fn register<'a>() -> Parser<'a, str, Type> {
@@ -118,7 +149,11 @@ pub enum Type {
         arg0: Box<Type>,
         arg1: Box<Type>,
     },
-    Expression(Vec<Type>),
+    BinaryOperation {
+        op: Box<Type>,
+        a: Box<Type>,
+        b: Box<Type>,
+    },
     Ignored,
     HexLiteral(String),
     Variable(String),
@@ -136,6 +171,15 @@ pub enum Operator {
     Plus,
     Minus,
     Star,
+}
+impl Operator {
+    fn priority(&self) -> usize {
+        match self {
+            Operator::Plus => 1,
+            Operator::Minus => 1,
+            Operator::Star => 2,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -195,11 +239,11 @@ mod tests {
                 index: 19,
                 result: Type::Instruction2 {
                     instruction: Instruction::MoveLitReg,
-                    arg0: Box::new(Type::Expression(vec![
-                        Type::HexLiteral("aa12".to_string()),
-                        Type::Operator(Operator::Plus),
-                        Type::Variable("a".to_string())
-                    ])),
+                    arg0: Box::new(Type::BinaryOperation {
+                        a: Box::new(Type::HexLiteral("aa12".to_string())),
+                        op: Box::new(Type::Operator(Operator::Plus)),
+                        b: Box::new(Type::Variable("a".to_string()))
+                    }),
                     arg1: Box::new(Type::Register("R1".to_string())),
                 },
             })
@@ -212,18 +256,48 @@ mod tests {
             super::square_bracket_expression().parse("[$aa12 + [!uu * !aa] - $1]"),
             Ok(ParserState {
                 index: 26,
-                result: Type::Expression(vec![
-                    Type::HexLiteral("aa12".to_string()),
-                    Type::Operator(Operator::Plus),
-                    Type::Expression(vec![
-                        Type::Variable("uu".to_string()),
-                        Type::Operator(Operator::Star),
-                        Type::Variable("aa".to_string())
-                    ]),
-                    Type::Operator(Operator::Minus),
-                    Type::HexLiteral("1".to_string()),
-                ])
+                result: Type::BinaryOperation {
+                    a: Box::new(Type::HexLiteral("aa12".to_string())),
+                    op: Box::new(Type::Operator(Operator::Plus)),
+                    b: Box::new(Type::BinaryOperation {
+                        a: Box::new(Type::BinaryOperation {
+                            a: Box::new(Type::Variable("uu".to_string())),
+                            op: Box::new(Type::Operator(Operator::Star)),
+                            b: Box::new(Type::Variable("aa".to_string())),
+                        }),
+                        op: Box::new(Type::Operator(Operator::Minus)),
+                        b: Box::new(Type::HexLiteral("1".to_string())),
+                    }),
+                }
             })
+        )
+    }
+
+    #[test]
+    fn group_binary_operations() {
+        assert_eq!(
+            super::group_binary_operations(vec![
+                Type::HexLiteral("aa12".to_string()),
+                Type::Operator(Operator::Plus),
+                Type::Variable("uu".to_string()),
+                Type::Operator(Operator::Star),
+                Type::Variable("aa".to_string()),
+                Type::Operator(Operator::Minus),
+                Type::HexLiteral("1".to_string()),
+            ]),
+            Type::BinaryOperation {
+                a: Box::new(Type::HexLiteral("aa12".to_string())),
+                op: Box::new(Type::Operator(Operator::Plus)),
+                b: Box::new(Type::BinaryOperation {
+                    a: Box::new(Type::BinaryOperation {
+                        a: Box::new(Type::Variable("uu".to_string())),
+                        op: Box::new(Type::Operator(Operator::Star)),
+                        b: Box::new(Type::Variable("aa".to_string())),
+                    }),
+                    op: Box::new(Type::Operator(Operator::Minus)),
+                    b: Box::new(Type::HexLiteral("1".to_string())),
+                }),
+            }
         )
     }
 }

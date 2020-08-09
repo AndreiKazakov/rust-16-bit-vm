@@ -3,26 +3,17 @@ use crate::parser_combinator::core::Parser;
 use crate::parser_combinator::string;
 
 pub fn lit_reg<'a>(command: &str, instruction: Instruction) -> Parser<'a, str, Type> {
-    Parser::interspersed(
-        string::whitespace(),
-        vec![
-            string::literal(command.to_string()).map(|_| Type::Ignored),
-            Parser::one_of(vec![hex_literal(), square_bracket_expression()]),
-            register().left(string::optional_whitespace()),
-        ],
-    )
-    .map(move |res| to_instruction2(instruction, res))
+    instruction2(instruction, com(command), hex_or_exp(), register())
+}
+
+pub fn reg_lit<'a>(command: &str, instruction: Instruction) -> Parser<'a, str, Type> {
+    instruction2(instruction, com(command), register(), hex_or_exp())
 }
 
 pub fn lit_off_reg<'a>(command: &str, instruction: Instruction) -> Parser<'a, str, Type> {
     Parser::interspersed(
         string::whitespace(),
-        vec![
-            string::literal(command.to_string()).map(|_| Type::Ignored),
-            Parser::one_of(vec![hex_literal(), square_bracket_expression()]),
-            register(),
-            register().left(string::optional_whitespace()),
-        ],
+        vec![com(command), hex_or_exp(), register(), register()],
     )
     .map(move |mut res| {
         let third = res.remove(3);
@@ -38,103 +29,67 @@ pub fn lit_off_reg<'a>(command: &str, instruction: Instruction) -> Parser<'a, st
 }
 
 pub fn reg_reg<'a>(command: &str, instruction: Instruction) -> Parser<'a, str, Type> {
-    Parser::interspersed(
-        string::whitespace(),
-        vec![
-            string::literal(command.to_string()).map(|_| Type::Ignored),
-            register(),
-            register().left(string::optional_whitespace()),
-        ],
-    )
-    .map(move |res| to_instruction2(instruction, res))
+    instruction2(instruction, com(command), register(), register())
 }
 
 pub fn mem_reg<'a>(command: &str, instruction: Instruction) -> Parser<'a, str, Type> {
-    Parser::interspersed(
-        string::whitespace(),
-        vec![
-            string::literal(command.to_string()).map(|_| Type::Ignored),
-            Parser::one_of(vec![
-                address(),
-                string::character('&').right(square_bracket_expression()),
-            ]),
-            register().left(string::optional_whitespace()),
-        ],
-    )
-    .map(move |res| to_instruction2(instruction, res))
+    instruction2(instruction, com(command), address_or_exp(), register())
 }
 
 pub fn reg_mem<'a>(command: &str, instruction: Instruction) -> Parser<'a, str, Type> {
-    Parser::interspersed(
-        string::whitespace(),
-        vec![
-            string::literal(command.to_string()).map(|_| Type::Ignored),
-            register(),
-            Parser::one_of(vec![
-                address(),
-                string::character('&').right(square_bracket_expression()),
-            ])
-            .left(string::optional_whitespace()),
-        ],
-    )
-    .map(move |res| to_instruction2(instruction, res))
+    instruction2(instruction, com(command), register(), address_or_exp())
 }
 
 pub fn lit_mem<'a>(command: &str, instruction: Instruction) -> Parser<'a, str, Type> {
-    Parser::interspersed(
-        string::whitespace(),
-        vec![
-            string::literal(command.to_string()).map(|_| Type::Ignored),
-            Parser::one_of(vec![hex_literal(), square_bracket_expression()]),
-            Parser::one_of(vec![
-                address(),
-                string::character('&').right(square_bracket_expression()),
-            ])
-            .left(string::optional_whitespace()),
-        ],
-    )
-    .map(move |res| to_instruction2(instruction, res))
+    instruction2(instruction, com(command), hex_or_exp(), address_or_exp())
 }
 
 pub fn reg_ptr_reg<'a>(command: &str, instruction: Instruction) -> Parser<'a, str, Type> {
-    Parser::interspersed(
-        string::whitespace(),
-        vec![
-            string::literal(command.to_string()).map(|_| Type::Ignored),
-            string::character('&').right(register()),
-            register().left(string::optional_whitespace()),
-        ],
+    instruction2(
+        instruction,
+        com(command),
+        string::character('&').right(register()),
+        register(),
     )
-    .map(move |res| to_instruction2(instruction, res))
 }
 
 pub fn lit<'a>(command: &str, instruction: Instruction) -> Parser<'a, str, Type> {
-    Parser::interspersed(
-        string::whitespace(),
-        vec![
-            string::literal(command.to_string()).map(|_| Type::Ignored),
-            Parser::one_of(vec![hex_literal(), square_bracket_expression()])
-                .left(string::optional_whitespace()),
-        ],
-    )
-    .map(move |res| to_instruction1(instruction, res))
+    Parser::interspersed(string::whitespace(), vec![com(command), hex_or_exp()])
+        .map(move |res| to_instruction1(instruction, res))
 }
 
 pub fn reg<'a>(command: &str, instruction: Instruction) -> Parser<'a, str, Type> {
-    Parser::interspersed(
-        string::whitespace(),
-        vec![
-            string::literal(command.to_string()).map(|_| Type::Ignored),
-            register().left(string::optional_whitespace()),
-        ],
-    )
-    .map(move |res| to_instruction1(instruction, res))
+    Parser::interspersed(string::whitespace(), vec![com(command), register()])
+        .map(move |res| to_instruction1(instruction, res))
 }
 
 pub fn no_arg<'a>(command: &str, instruction: Instruction) -> Parser<'a, str, Type> {
-    string::literal(command.to_string())
-        .map(move |_| Type::Instruction0 { instruction })
-        .left(string::optional_whitespace())
+    string::literal(command.to_string()).map(move |_| Type::Instruction0 { instruction })
+}
+
+fn instruction2<'a>(
+    instruction: Instruction,
+    command: Parser<'a, str, Type>,
+    a: Parser<'a, str, Type>,
+    b: Parser<'a, str, Type>,
+) -> Parser<'a, str, Type> {
+    Parser::interspersed(string::whitespace(), vec![command, a, b])
+        .map(move |res| to_instruction2(instruction, res))
+}
+
+fn hex_or_exp<'a>() -> Parser<'a, str, Type> {
+    Parser::one_of(vec![hex_literal(), square_bracket_expression()])
+}
+
+fn address_or_exp<'a>() -> Parser<'a, str, Type> {
+    Parser::one_of(vec![
+        address(),
+        string::character('&').right(square_bracket_expression()),
+    ])
+}
+
+fn com<'a>(command: &str) -> Parser<'a, str, Type> {
+    string::literal(command.to_string()).map(|_| Type::Ignored)
 }
 
 fn to_instruction1(instruction: Instruction, mut parsed_instruction: Vec<Type>) -> Type {

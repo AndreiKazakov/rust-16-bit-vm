@@ -1,4 +1,5 @@
-use super::parser::{address, hex_literal, register, square_bracket_expression, Instruction, Type};
+use super::parser::{address, hex_literal, register, square_bracket_expression, Type};
+use crate::cpu::instruction::Instruction;
 use crate::parser_combinator::core::Parser;
 use crate::parser_combinator::string;
 
@@ -112,28 +113,28 @@ fn to_instruction2(instruction: Instruction, mut parsed_instruction: Vec<Type>) 
 
 #[cfg(test)]
 mod tests {
-    use crate::assembler::parser::Instruction;
+    use crate::cpu::instruction;
     use crate::parser_combinator::core::ParserState;
 
     #[test]
     fn lit_reg() {
         assert_eq!(
-            super::lit_reg("mov", Instruction::MoveLitReg).parse("mov $aa12 R1"),
+            super::lit_reg("mov", instruction::MOVE_LIT_REG).parse("mov $aa12 R1"),
             Ok(ParserState {
                 index: 12,
                 result: super::Type::Instruction2 {
-                    instruction: super::Instruction::MoveLitReg,
+                    instruction: instruction::MOVE_LIT_REG,
                     arg0: Box::new(super::Type::HexLiteral(43538)),
                     arg1: Box::new(super::Type::Register("R1".to_string())),
                 },
             })
         );
         assert_eq!(
-            super::lit_reg("mov", Instruction::MoveLitReg).parse("mov [$aa12 + !a] R1"),
+            super::lit_reg("mov", instruction::MOVE_LIT_REG).parse("mov [$aa12 + !a] R1"),
             Ok(ParserState {
                 index: 19,
                 result: super::Type::Instruction2 {
-                    instruction: super::Instruction::MoveLitReg,
+                    instruction: instruction::MOVE_LIT_REG,
                     arg0: Box::new(super::Type::BinaryOperation {
                         a: Box::new(super::Type::HexLiteral(43538)),
                         op: Box::new(super::Type::Operator(super::super::parser::Operator::Plus)),
@@ -148,11 +149,11 @@ mod tests {
     #[test]
     fn lit_off_reg() {
         assert_eq!(
-            super::lit_off_reg("mov", Instruction::MoveLitOffReg).parse("mov $aa12 R3 R1"),
+            super::lit_off_reg("mov", instruction::MOVE_LIT_OFF_REG).parse("mov $aa12 R3 R1"),
             Ok(ParserState {
                 index: 15,
                 result: super::Type::Instruction3 {
-                    instruction: super::Instruction::MoveLitOffReg,
+                    instruction: instruction::MOVE_LIT_OFF_REG,
                     arg0: Box::new(super::Type::HexLiteral(43538)),
                     arg1: Box::new(super::Type::Register("R3".to_string())),
                     arg2: Box::new(super::Type::Register("R1".to_string())),
@@ -164,11 +165,11 @@ mod tests {
     #[test]
     fn reg_reg() {
         assert_eq!(
-            super::reg_reg("mov", Instruction::MoveRegReg).parse("mov R2 R1"),
+            super::reg_reg("mov", instruction::MOVE_REG_REG).parse("mov R2 R1"),
             Ok(ParserState {
                 index: 9,
                 result: super::Type::Instruction2 {
-                    instruction: super::Instruction::MoveRegReg,
+                    instruction: instruction::MOVE_REG_REG,
                     arg0: Box::new(super::Type::Register("R2".to_string())),
                     arg1: Box::new(super::Type::Register("R1".to_string())),
                 },
@@ -179,22 +180,22 @@ mod tests {
     #[test]
     fn mem_reg() {
         assert_eq!(
-            super::mem_reg("mov", Instruction::MoveMemReg).parse("mov &123 R1"),
+            super::mem_reg("mov", instruction::MOVE_MEM_REG).parse("mov &123 R1"),
             Ok(ParserState {
                 index: 11,
                 result: super::Type::Instruction2 {
-                    instruction: super::Instruction::MoveMemReg,
+                    instruction: instruction::MOVE_MEM_REG,
                     arg0: Box::new(super::Type::Address(291)),
                     arg1: Box::new(super::Type::Register("R1".to_string())),
                 },
             })
         );
         assert_eq!(
-            super::mem_reg("mov", Instruction::MoveMemReg).parse("mov &[$aa12 + !a] R1"),
+            super::mem_reg("mov", instruction::MOVE_MEM_REG).parse("mov &[$aa12 + !a] R1"),
             Ok(ParserState {
                 index: 20,
                 result: super::Type::Instruction2 {
-                    instruction: super::Instruction::MoveMemReg,
+                    instruction: instruction::MOVE_MEM_REG,
                     arg0: Box::new(super::Type::BinaryOperation {
                         a: Box::new(super::Type::HexLiteral(43538)),
                         op: Box::new(super::Type::Operator(super::super::parser::Operator::Plus)),
@@ -209,22 +210,22 @@ mod tests {
     #[test]
     fn reg_mem() {
         assert_eq!(
-            super::reg_mem("mov", Instruction::MoveRegMem).parse("mov R1 &123"),
+            super::reg_mem("mov", instruction::MOVE_REG_MEM).parse("mov R1 &123"),
             Ok(ParserState {
                 index: 11,
                 result: super::Type::Instruction2 {
-                    instruction: super::Instruction::MoveRegMem,
+                    instruction: instruction::MOVE_REG_MEM,
                     arg0: Box::new(super::Type::Register("R1".to_string())),
                     arg1: Box::new(super::Type::Address(291)),
                 },
             })
         );
         assert_eq!(
-            super::reg_mem("mov", Instruction::MoveRegMem).parse("mov R1 &[$aa12 + !a]"),
+            super::reg_mem("mov", instruction::MOVE_REG_MEM).parse("mov R1 &[$aa12 + !a]"),
             Ok(ParserState {
                 index: 20,
                 result: super::Type::Instruction2 {
-                    instruction: super::Instruction::MoveRegMem,
+                    instruction: instruction::MOVE_REG_MEM,
                     arg0: Box::new(super::Type::Register("R1".to_string())),
                     arg1: Box::new(super::Type::BinaryOperation {
                         a: Box::new(super::Type::HexLiteral(43538)),
@@ -239,11 +240,11 @@ mod tests {
     #[test]
     fn lit_mem() {
         assert_eq!(
-            super::lit_mem("mov", Instruction::MoveLitMem).parse("mov $aa12 &12"),
+            super::lit_mem("mov", instruction::MOVE_LIT_MEM).parse("mov $aa12 &12"),
             Ok(ParserState {
                 index: 13,
                 result: super::Type::Instruction2 {
-                    instruction: super::Instruction::MoveLitMem,
+                    instruction: instruction::MOVE_LIT_MEM,
                     arg0: Box::new(super::Type::HexLiteral(43538)),
                     arg1: Box::new(super::Type::Address(18)),
                 },
@@ -254,11 +255,11 @@ mod tests {
     #[test]
     fn reg_ptr_reg() {
         assert_eq!(
-            super::reg_ptr_reg("mov", Instruction::MoveRegPtrReg).parse("mov &R2 R1"),
+            super::reg_ptr_reg("mov", instruction::MOVE_REG_PTR_REG).parse("mov &R2 R1"),
             Ok(ParserState {
                 index: 10,
                 result: super::Type::Instruction2 {
-                    instruction: super::Instruction::MoveRegPtrReg,
+                    instruction: instruction::MOVE_REG_PTR_REG,
                     arg0: Box::new(super::Type::Register("R2".to_string())),
                     arg1: Box::new(super::Type::Register("R1".to_string())),
                 },
@@ -269,11 +270,11 @@ mod tests {
     #[test]
     fn lit() {
         assert_eq!(
-            super::lit("mov", Instruction::MoveLitMem).parse("mov $aa12"),
+            super::lit("mov", instruction::MOVE_LIT_MEM).parse("mov $aa12"),
             Ok(ParserState {
                 index: 9,
                 result: super::Type::Instruction1 {
-                    instruction: super::Instruction::MoveLitMem,
+                    instruction: instruction::MOVE_LIT_MEM,
                     arg0: Box::new(super::Type::HexLiteral(43538)),
                 },
             })
@@ -283,11 +284,11 @@ mod tests {
     #[test]
     fn reg() {
         assert_eq!(
-            super::reg("mov", Instruction::MoveLitMem).parse("mov R5"),
+            super::reg("mov", instruction::MOVE_LIT_MEM).parse("mov R5"),
             Ok(ParserState {
                 index: 6,
                 result: super::Type::Instruction1 {
-                    instruction: super::Instruction::MoveLitMem,
+                    instruction: instruction::MOVE_LIT_MEM,
                     arg0: Box::new(super::Type::Register("R5".to_string())),
                 },
             })
@@ -297,11 +298,11 @@ mod tests {
     #[test]
     fn no_arg() {
         assert_eq!(
-            super::no_arg("mov", Instruction::MoveLitMem).parse("mov"),
+            super::no_arg("mov", instruction::MOVE_LIT_MEM).parse("mov"),
             Ok(ParserState {
                 index: 3,
                 result: super::Type::Instruction0 {
-                    instruction: super::Instruction::MoveLitMem,
+                    instruction: instruction::MOVE_LIT_MEM,
                 },
             })
         );

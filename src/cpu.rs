@@ -114,29 +114,29 @@ impl CPU {
 
     fn execute(&mut self, instruction: u8) -> bool {
         match instruction {
-            instruction::MOVE_LIT_MEM => {
+            x if x == instruction::MOVE_LIT_MEM.opcode => {
                 let value = self.fetch16();
                 let mem = self.fetch16();
                 self.memory.set_u16(mem as usize, value)
             }
-            instruction::MOVE_LIT_REG => {
+            x if x == instruction::MOVE_LIT_REG.opcode => {
                 let value = self.fetch16();
                 let reg = self.fetch_register_index();
                 self.set_register(reg, value)
             }
-            instruction::MOVE_REG_REG => {
+            x if x == instruction::MOVE_REG_REG.opcode => {
                 let reg_from = self.fetch_register_index();
                 let reg_to = self.fetch_register_index();
                 self.set_register(reg_to, self.get_register(reg_from))
             }
-            instruction::MOVE_REG_PTR_REG => {
+            x if x == instruction::MOVE_REG_PTR_REG.opcode => {
                 let reg_from = self.fetch_register_index();
                 let reg_to = self.fetch_register_index();
                 let ptr = self.get_register(reg_from);
                 let val = self.memory.get_u16(ptr as usize);
                 self.set_register(reg_to, val)
             }
-            instruction::MOVE_LIT_OFF_REG => {
+            x if x == instruction::MOVE_LIT_OFF_REG.opcode => {
                 let address = self.fetch16();
                 let reg_from = self.fetch_register_index();
                 let reg_to = self.fetch_register_index();
@@ -144,38 +144,38 @@ impl CPU {
                 let val = self.memory.get_u16((offset + address) as usize);
                 self.set_register(reg_to, val)
             }
-            instruction::MOVE_REG_MEM => {
+            x if x == instruction::MOVE_REG_MEM.opcode => {
                 let reg = self.fetch_register_index();
                 let mem = self.fetch16();
                 self.memory.set_u16(mem as usize, self.get_register(reg))
             }
-            instruction::MOVE_MEM_REG => {
+            x if x == instruction::MOVE_MEM_REG.opcode => {
                 let mem = self.fetch16();
                 let reg = self.fetch_register_index();
                 self.set_register(reg, self.memory.get_u16(mem as usize))
             }
 
-            instruction::REG_ADD => {
+            x if x == instruction::ADD_REG_REG.opcode => {
                 let r1 = self.fetch_register_index();
                 let r2 = self.fetch_register_index();
                 self.set_register(register::ACC, self.get_register(r1) + self.get_register(r2))
             }
-            instruction::ADD_LIT_REG => {
+            x if x == instruction::ADD_LIT_REG.opcode => {
                 let val = self.fetch16();
                 let reg = self.fetch_register_index();
                 self.set_register(register::ACC, self.get_register(reg) + val)
             }
-            instruction::SUB_LIT_REG => {
+            x if x == instruction::SUB_LIT_REG.opcode => {
                 let val = self.fetch16();
                 let reg = self.fetch_register_index();
                 self.set_register(register::ACC, val - self.get_register(reg))
             }
-            instruction::SUB_REG_LIT => {
+            x if x == instruction::SUB_REG_LIT.opcode => {
                 let reg = self.fetch_register_index();
                 let val = self.fetch16();
                 self.set_register(register::ACC, self.get_register(reg) - val)
             }
-            instruction::SUB_REG_REG => {
+            x if x == instruction::SUB_REG_REG.opcode => {
                 let reg_1 = self.fetch_register_index();
                 let reg_2 = self.fetch_register_index();
                 self.set_register(
@@ -183,7 +183,7 @@ impl CPU {
                     self.get_register(reg_1) - self.get_register(reg_2),
                 )
             }
-            instruction::MUL_REG_REG => {
+            x if x == instruction::MUL_REG_REG.opcode => {
                 let reg_1 = self.fetch_register_index();
                 let reg_2 = self.fetch_register_index();
                 self.set_register(
@@ -191,44 +191,44 @@ impl CPU {
                     self.get_register(reg_1) * self.get_register(reg_2),
                 )
             }
-            instruction::MUL_LIT_REG => {
+            x if x == instruction::MUL_LIT_REG.opcode => {
                 let val = self.fetch16();
                 let reg = self.fetch_register_index();
                 self.set_register(register::ACC, val * self.get_register(reg))
             }
-            instruction::INC_REG => {
+            x if x == instruction::INC_REG.opcode => {
                 let reg = self.fetch_register_index();
                 self.registers.set_u16(reg, self.get_register(reg) + 1);
             }
-            instruction::DEC_REG => {
+            x if x == instruction::DEC_REG.opcode => {
                 let reg = self.fetch_register_index();
                 self.registers.set_u16(reg, self.get_register(reg) - 1);
             }
 
             // Binary operations
-            instruction::LST_REG_REG => {
+            x if x == instruction::LSF_REG_REG.opcode => {
                 let reg_1 = self.fetch_register_index();
                 let reg_2 = self.fetch_register_index();
                 self.registers
                     .set_u16(reg_1, self.get_register(reg_1) << self.get_register(reg_2))
             }
-            instruction::LST_REG_LIT => {
+            x if x == instruction::LSF_REG_LIT8.opcode => {
                 let reg = self.fetch_register_index();
                 let val = self.fetch16();
                 self.registers.set_u16(reg, self.get_register(reg) << val)
             }
-            instruction::RST_REG_REG => {
+            x if x == instruction::RSF_REG_REG.opcode => {
                 let reg_1 = self.fetch_register_index();
                 let reg_2 = self.fetch_register_index();
                 self.registers
                     .set_u16(reg_1, self.get_register(reg_1) >> self.get_register(reg_2))
             }
-            instruction::RST_REG_LIT => {
+            x if x == instruction::RSF_REG_LIT8.opcode => {
                 let reg = self.fetch_register_index();
                 let val = self.fetch16();
                 self.registers.set_u16(reg, self.get_register(reg) >> val)
             }
-            instruction::AND_REG_REG => {
+            x if x == instruction::AND_REG_REG.opcode => {
                 let reg_1 = self.fetch_register_index();
                 let reg_2 = self.fetch_register_index();
                 self.registers.set_u16(
@@ -236,13 +236,13 @@ impl CPU {
                     self.get_register(reg_1) & self.get_register(reg_2),
                 )
             }
-            instruction::AND_REG_LIT => {
+            x if x == instruction::AND_REG_LIT.opcode => {
                 let reg = self.fetch_register_index();
                 let val = self.fetch16();
                 self.registers
                     .set_u16(register::ACC, self.get_register(reg) & val)
             }
-            instruction::OR_REG_REG => {
+            x if x == instruction::OR_REG_REG.opcode => {
                 let reg_1 = self.fetch_register_index();
                 let reg_2 = self.fetch_register_index();
                 self.registers.set_u16(
@@ -250,13 +250,13 @@ impl CPU {
                     self.get_register(reg_1) | self.get_register(reg_2),
                 )
             }
-            instruction::OR_REG_LIT => {
+            x if x == instruction::OR_REG_LIT.opcode => {
                 let reg = self.fetch_register_index();
                 let val = self.fetch16();
                 self.registers
                     .set_u16(register::ACC, self.get_register(reg) | val)
             }
-            instruction::XOR_REG_REG => {
+            x if x == instruction::XOR_REG_REG.opcode => {
                 let reg_1 = self.fetch_register_index();
                 let reg_2 = self.fetch_register_index();
                 self.registers.set_u16(
@@ -264,97 +264,97 @@ impl CPU {
                     self.get_register(reg_1) ^ self.get_register(reg_2),
                 )
             }
-            instruction::XOR_REG_LIT => {
+            x if x == instruction::XOR_REG_LIT.opcode => {
                 let reg = self.fetch_register_index();
                 let val = self.fetch16();
                 self.registers
                     .set_u16(register::ACC, self.get_register(reg) ^ val)
             }
-            instruction::NOT => {
+            x if x == instruction::NOT_REG.opcode => {
                 let reg = self.fetch_register_index();
                 self.registers
                     .set_u16(register::ACC, !self.get_register(reg))
             }
 
             // Conditional jumps
-            instruction::JNE_LIT => {
+            x if x == instruction::JNE_LIT_MEM.opcode => {
                 let lit = self.fetch16();
                 let address = self.fetch16();
                 if self.get_register(register::ACC) != lit {
                     self.set_register(register::IP, address)
                 }
             }
-            instruction::JNE_REG => {
+            x if x == instruction::JNE_REG_MEM.opcode => {
                 let reg = self.fetch_register_index();
                 let address = self.fetch16();
                 if self.get_register(register::ACC) != self.get_register(reg) {
                     self.set_register(register::IP, address)
                 }
             }
-            instruction::JEQ_LIT => {
+            x if x == instruction::JEQ_LIT_MEM.opcode => {
                 let lit = self.fetch16();
                 let address = self.fetch16();
                 if self.get_register(register::ACC) == lit {
                     self.set_register(register::IP, address)
                 }
             }
-            instruction::JEQ_REG => {
+            x if x == instruction::JEQ_REG_MEM.opcode => {
                 let reg = self.fetch_register_index();
                 let address = self.fetch16();
                 if self.get_register(register::ACC) == self.get_register(reg) {
                     self.set_register(register::IP, address)
                 }
             }
-            instruction::JGT_LIT => {
+            x if x == instruction::JGT_LIT_MEM.opcode => {
                 let lit = self.fetch16();
                 let address = self.fetch16();
                 if self.get_register(register::ACC) > lit {
                     self.set_register(register::IP, address)
                 }
             }
-            instruction::JGT_REG => {
+            x if x == instruction::JGT_REG_MEM.opcode => {
                 let reg = self.fetch_register_index();
                 let address = self.fetch16();
                 if self.get_register(register::ACC) > self.get_register(reg) {
                     self.set_register(register::IP, address)
                 }
             }
-            instruction::JLT_LIT => {
+            x if x == instruction::JLT_LIT_MEM.opcode => {
                 let lit = self.fetch16();
                 let address = self.fetch16();
                 if self.get_register(register::ACC) < lit {
                     self.set_register(register::IP, address)
                 }
             }
-            instruction::JLT_REG => {
+            x if x == instruction::JLT_REG_MEM.opcode => {
                 let reg = self.fetch_register_index();
                 let address = self.fetch16();
                 if self.get_register(register::ACC) < self.get_register(reg) {
                     self.set_register(register::IP, address)
                 }
             }
-            instruction::JGE_LIT => {
+            x if x == instruction::JGE_LIT_MEM.opcode => {
                 let lit = self.fetch16();
                 let address = self.fetch16();
                 if self.get_register(register::ACC) >= lit {
                     self.set_register(register::IP, address)
                 }
             }
-            instruction::JGE_REG => {
+            x if x == instruction::JGE_REG_MEM.opcode => {
                 let reg = self.fetch_register_index();
                 let address = self.fetch16();
                 if self.get_register(register::ACC) >= self.get_register(reg) {
                     self.set_register(register::IP, address)
                 }
             }
-            instruction::JLE_LIT => {
+            x if x == instruction::JLE_LIT_MEM.opcode => {
                 let lit = self.fetch16();
                 let address = self.fetch16();
                 if self.get_register(register::ACC) <= lit {
                     self.set_register(register::IP, address)
                 }
             }
-            instruction::JLE_REG => {
+            x if x == instruction::JLE_REG_MEM.opcode => {
                 let reg = self.fetch_register_index();
                 let address = self.fetch16();
                 if self.get_register(register::ACC) <= self.get_register(reg) {
@@ -362,34 +362,34 @@ impl CPU {
                 }
             }
 
-            instruction::PUSH_LIT => {
+            x if x == instruction::PSH_LIT.opcode => {
                 let lit = self.fetch16();
                 self.push_to_stack(lit);
             }
-            instruction::PUSH_REG => {
+            x if x == instruction::PSH_REG.opcode => {
                 let reg = self.fetch_register_index();
                 self.push_to_stack(self.get_register(reg));
             }
-            instruction::POP => {
+            x if x == instruction::POP_REG.opcode => {
                 let reg = self.fetch_register_index();
                 let value = self.pop_from_stack();
                 self.set_register(reg, value);
             }
-            instruction::CAL_LIT => {
+            x if x == instruction::CAL_LIT.opcode => {
                 let address = self.fetch16();
                 self.push_state();
                 self.set_register(register::IP, address);
             }
-            instruction::CAL_REG => {
+            x if x == instruction::CAL_REG.opcode => {
                 let reg = self.fetch_register_index();
                 let address = self.get_register(reg);
                 self.push_state();
                 self.set_register(register::IP, address);
             }
-            instruction::RET => {
+            x if x == instruction::RET.opcode => {
                 self.pop_state();
             }
-            instruction::HLT => return true,
+            x if x == instruction::HLT.opcode => return true,
             _ => panic!("Unrecognized instruction: {}", instruction),
         }
         false
@@ -534,13 +534,13 @@ mod tests {
     #[test]
     fn reg_add() {
         let mut mem = Memory::new(11);
-        mem.set_u8(0, instruction::MOVE_LIT_REG);
+        mem.set_u8(0, instruction::MOVE_LIT_REG.opcode);
         mem.set_u16(1, 0x1234);
         mem.set_u8(3, register::R1 as u8);
-        mem.set_u8(4, instruction::MOVE_LIT_REG);
+        mem.set_u8(4, instruction::MOVE_LIT_REG.opcode);
         mem.set_u16(5, 0xABCD);
         mem.set_u8(7, register::R2 as u8);
-        mem.set_u8(8, instruction::REG_ADD);
+        mem.set_u8(8, instruction::ADD_REG_REG.opcode);
         mem.set_u8(9, register::R1 as u8);
         mem.set_u8(10, register::R2 as u8);
 
@@ -557,7 +557,7 @@ mod tests {
     #[test]
     fn move_lit_reg() {
         let mut mem = Memory::new(4);
-        mem.set_u8(0, instruction::MOVE_LIT_REG);
+        mem.set_u8(0, instruction::MOVE_LIT_REG.opcode);
         mem.set_u16(1, 0x1234);
         mem.set_u8(3, register::R1 as u8);
 
@@ -572,10 +572,10 @@ mod tests {
     #[test]
     fn move_reg_reg() {
         let mut mem = Memory::new(7);
-        mem.set_u8(0, instruction::MOVE_LIT_REG);
+        mem.set_u8(0, instruction::MOVE_LIT_REG.opcode);
         mem.set_u16(1, 0x1234);
         mem.set_u8(3, register::R1 as u8);
-        mem.set_u8(4, instruction::MOVE_REG_REG);
+        mem.set_u8(4, instruction::MOVE_REG_REG.opcode);
         mem.set_u8(5, register::R1 as u8);
         mem.set_u8(6, register::R2 as u8);
 
@@ -591,10 +591,10 @@ mod tests {
     #[test]
     fn move_reg_mem() {
         let mut mem = Memory::new(8);
-        mem.set_u8(0, instruction::MOVE_LIT_REG);
+        mem.set_u8(0, instruction::MOVE_LIT_REG.opcode);
         mem.set_u16(1, 0x1234);
         mem.set_u8(3, register::R1 as u8);
-        mem.set_u8(4, instruction::MOVE_REG_MEM);
+        mem.set_u8(4, instruction::MOVE_REG_MEM.opcode);
         mem.set_u8(5, register::R1 as u8);
         mem.set_u16(6, 0x1);
 
@@ -610,7 +610,7 @@ mod tests {
     #[test]
     fn move_lit_mem() {
         let mut mem = Memory::new(8);
-        mem.set_u8(0, instruction::MOVE_LIT_MEM);
+        mem.set_u8(0, instruction::MOVE_LIT_MEM.opcode);
         mem.set_u16(1, 0x1234);
         mem.set_u16(3, 0x6);
 
@@ -623,7 +623,7 @@ mod tests {
     #[test]
     fn move_reg_ptr_reg() {
         let mut mem = Memory::new(8);
-        mem.set_u8(0, instruction::MOVE_REG_PTR_REG);
+        mem.set_u8(0, instruction::MOVE_REG_PTR_REG.opcode);
         mem.set_u8(1, register::R1 as u8);
         mem.set_u8(2, register::R2 as u8);
         mem.set_u16(0x6, 0x5555);
@@ -638,7 +638,7 @@ mod tests {
     #[test]
     fn move_reg_off_reg() {
         let mut mem = Memory::new(8);
-        mem.set_u8(0, instruction::MOVE_LIT_OFF_REG);
+        mem.set_u8(0, instruction::MOVE_LIT_OFF_REG.opcode);
         mem.set_u16(1, 1);
         mem.set_u8(3, register::R1 as u8);
         mem.set_u8(4, register::R2 as u8);
@@ -654,7 +654,7 @@ mod tests {
     #[test]
     fn add_lit_reg() {
         let mut mem = Memory::new(4);
-        mem.set_u8(0, instruction::ADD_LIT_REG);
+        mem.set_u8(0, instruction::ADD_LIT_REG.opcode);
         mem.set_u16(1, 5);
         mem.set_u8(3, register::R1 as u8);
 
@@ -668,7 +668,7 @@ mod tests {
     #[test]
     fn sub_lit_reg() {
         let mut mem = Memory::new(4);
-        mem.set_u8(0, instruction::SUB_LIT_REG);
+        mem.set_u8(0, instruction::SUB_LIT_REG.opcode);
         mem.set_u16(1, 5);
         mem.set_u8(3, register::R1 as u8);
 
@@ -682,7 +682,7 @@ mod tests {
     #[test]
     fn sub_reg_lit() {
         let mut mem = Memory::new(4);
-        mem.set_u8(0, instruction::SUB_REG_LIT);
+        mem.set_u8(0, instruction::SUB_REG_LIT.opcode);
         mem.set_u8(1, register::R1 as u8);
         mem.set_u16(2, 5);
 
@@ -696,7 +696,7 @@ mod tests {
     #[test]
     fn sub_reg_reg() {
         let mut mem = Memory::new(3);
-        mem.set_u8(0, instruction::SUB_REG_REG);
+        mem.set_u8(0, instruction::SUB_REG_REG.opcode);
         mem.set_u8(1, register::R1 as u8);
         mem.set_u8(2, register::R2 as u8);
 
@@ -711,7 +711,7 @@ mod tests {
     #[test]
     fn mul_reg_reg() {
         let mut mem = Memory::new(3);
-        mem.set_u8(0, instruction::MUL_REG_REG);
+        mem.set_u8(0, instruction::MUL_REG_REG.opcode);
         mem.set_u8(1, register::R1 as u8);
         mem.set_u8(2, register::R2 as u8);
 
@@ -726,7 +726,7 @@ mod tests {
     #[test]
     fn mul_lit_reg() {
         let mut mem = Memory::new(4);
-        mem.set_u8(0, instruction::MUL_LIT_REG);
+        mem.set_u8(0, instruction::MUL_LIT_REG.opcode);
         mem.set_u16(1, 0x3);
         mem.set_u8(3, register::R1 as u8);
 
@@ -740,7 +740,7 @@ mod tests {
     #[test]
     fn lst_reg_lit() {
         let mut mem = Memory::new(4);
-        mem.set_u8(0, instruction::LST_REG_LIT);
+        mem.set_u8(0, instruction::LSF_REG_LIT8.opcode);
         mem.set_u8(1, register::R1 as u8);
         mem.set_u16(2, 0x3);
 
@@ -754,7 +754,7 @@ mod tests {
     #[test]
     fn lst_reg_reg() {
         let mut mem = Memory::new(4);
-        mem.set_u8(0, instruction::LST_REG_REG);
+        mem.set_u8(0, instruction::LSF_REG_REG.opcode);
         mem.set_u8(1, register::R1 as u8);
         mem.set_u8(2, register::R2 as u8);
 
@@ -769,7 +769,7 @@ mod tests {
     #[test]
     fn rst_reg_lit() {
         let mut mem = Memory::new(4);
-        mem.set_u8(0, instruction::RST_REG_LIT);
+        mem.set_u8(0, instruction::RSF_REG_LIT8.opcode);
         mem.set_u8(1, register::R1 as u8);
         mem.set_u16(2, 0x1);
 
@@ -783,7 +783,7 @@ mod tests {
     #[test]
     fn rst_reg_reg() {
         let mut mem = Memory::new(4);
-        mem.set_u8(0, instruction::RST_REG_REG);
+        mem.set_u8(0, instruction::RSF_REG_REG.opcode);
         mem.set_u8(1, register::R1 as u8);
         mem.set_u8(2, register::R2 as u8);
 
@@ -798,7 +798,7 @@ mod tests {
     #[test]
     fn and_reg_lit() {
         let mut mem = Memory::new(4);
-        mem.set_u8(0, instruction::AND_REG_LIT);
+        mem.set_u8(0, instruction::AND_REG_LIT.opcode);
         mem.set_u8(1, register::R1 as u8);
         mem.set_u16(2, 0x1);
 
@@ -812,7 +812,7 @@ mod tests {
     #[test]
     fn and_reg_reg() {
         let mut mem = Memory::new(4);
-        mem.set_u8(0, instruction::AND_REG_REG);
+        mem.set_u8(0, instruction::AND_REG_REG.opcode);
         mem.set_u8(1, register::R1 as u8);
         mem.set_u8(2, register::R2 as u8);
 
@@ -827,7 +827,7 @@ mod tests {
     #[test]
     fn or_reg_lit() {
         let mut mem = Memory::new(4);
-        mem.set_u8(0, instruction::OR_REG_LIT);
+        mem.set_u8(0, instruction::OR_REG_LIT.opcode);
         mem.set_u8(1, register::R1 as u8);
         mem.set_u16(2, 0x8);
 
@@ -841,7 +841,7 @@ mod tests {
     #[test]
     fn or_reg_reg() {
         let mut mem = Memory::new(4);
-        mem.set_u8(0, instruction::OR_REG_REG);
+        mem.set_u8(0, instruction::OR_REG_REG.opcode);
         mem.set_u8(1, register::R1 as u8);
         mem.set_u8(2, register::R2 as u8);
 
@@ -856,7 +856,7 @@ mod tests {
     #[test]
     fn xor_reg_lit() {
         let mut mem = Memory::new(4);
-        mem.set_u8(0, instruction::XOR_REG_LIT);
+        mem.set_u8(0, instruction::XOR_REG_LIT.opcode);
         mem.set_u8(1, register::R1 as u8);
         mem.set_u16(2, 0x1);
 
@@ -870,7 +870,7 @@ mod tests {
     #[test]
     fn xor_reg_reg() {
         let mut mem = Memory::new(4);
-        mem.set_u8(0, instruction::XOR_REG_REG);
+        mem.set_u8(0, instruction::XOR_REG_REG.opcode);
         mem.set_u8(1, register::R1 as u8);
         mem.set_u8(2, register::R2 as u8);
 
@@ -885,7 +885,7 @@ mod tests {
     #[test]
     fn not() {
         let mut mem = Memory::new(2);
-        mem.set_u8(0, instruction::NOT);
+        mem.set_u8(0, instruction::NOT_REG.opcode);
         mem.set_u8(1, register::R1 as u8);
 
         let mut cpu = CPU::new(Box::new(mem));
@@ -898,7 +898,7 @@ mod tests {
     #[test]
     fn inc_reg() {
         let mut mem = Memory::new(2);
-        mem.set_u8(0, instruction::INC_REG);
+        mem.set_u8(0, instruction::INC_REG.opcode);
         mem.set_u8(1, register::R1 as u8);
 
         let mut cpu = CPU::new(Box::new(mem));
@@ -911,7 +911,7 @@ mod tests {
     #[test]
     fn dec_reg() {
         let mut mem = Memory::new(2);
-        mem.set_u8(0, instruction::DEC_REG);
+        mem.set_u8(0, instruction::DEC_REG.opcode);
         mem.set_u8(1, register::R1 as u8);
 
         let mut cpu = CPU::new(Box::new(mem));
@@ -924,7 +924,7 @@ mod tests {
     #[test]
     fn move_mem_reg() {
         let mut mem = Memory::new(4);
-        mem.set_u8(0, instruction::MOVE_MEM_REG);
+        mem.set_u8(0, instruction::MOVE_MEM_REG.opcode);
         mem.set_u16(1, 0x1);
         mem.set_u8(3, register::R1 as u8);
 
@@ -939,13 +939,13 @@ mod tests {
     #[test]
     fn jmp_not_eq() {
         let mut mem = Memory::new(14);
-        mem.set_u8(0, instruction::MOVE_LIT_REG);
+        mem.set_u8(0, instruction::MOVE_LIT_REG.opcode);
         mem.set_u16(1, 0x1234);
         mem.set_u8(3, register::ACC as u8);
-        mem.set_u8(4, instruction::JNE_LIT);
+        mem.set_u8(4, instruction::JNE_LIT_MEM.opcode);
         mem.set_u16(5, 0x1234);
         mem.set_u16(7, 0x0);
-        mem.set_u8(9, instruction::JNE_LIT);
+        mem.set_u8(9, instruction::JNE_LIT_MEM.opcode);
         mem.set_u16(10, 0x12AB);
         mem.set_u16(12, 0x2);
 
@@ -961,7 +961,7 @@ mod tests {
     #[test]
     fn push_lit() {
         let mut mem = Memory::new(6);
-        mem.set_u8(0, instruction::PUSH_LIT);
+        mem.set_u8(0, instruction::PSH_LIT.opcode);
         mem.set_u16(1, 0x1234);
 
         let mut cpu = CPU::new(Box::new(mem));
@@ -976,10 +976,10 @@ mod tests {
     #[test]
     fn push_reg() {
         let mut mem = Memory::new(10);
-        mem.set_u8(0, instruction::MOVE_LIT_REG);
+        mem.set_u8(0, instruction::MOVE_LIT_REG.opcode);
         mem.set_u16(1, 0xABCD);
         mem.set_u8(3, register::R1 as u8);
-        mem.set_u8(4, instruction::PUSH_REG);
+        mem.set_u8(4, instruction::PSH_REG.opcode);
         mem.set_u8(5, register::R1 as u8);
 
         let mut cpu = CPU::new(Box::new(mem));
@@ -993,9 +993,9 @@ mod tests {
     #[test]
     fn pop() {
         let mut mem = Memory::new(10);
-        mem.set_u8(0, instruction::PUSH_LIT);
+        mem.set_u8(0, instruction::PSH_LIT.opcode);
         mem.set_u16(1, 0x1234);
-        mem.set_u8(3, instruction::POP);
+        mem.set_u8(3, instruction::POP_REG.opcode);
         mem.set_u8(4, register::R1 as u8);
 
         let mut cpu = CPU::new(Box::new(mem));
@@ -1013,9 +1013,9 @@ mod tests {
     #[test]
     fn cal_lit() {
         let mut mem = Memory::new(34);
-        mem.set_u8(0, instruction::CAL_LIT);
+        mem.set_u8(0, instruction::CAL_LIT.opcode);
         mem.set_u16(1, 10);
-        mem.set_u8(10, instruction::MOVE_LIT_REG);
+        mem.set_u8(10, instruction::MOVE_LIT_REG.opcode);
         mem.set_u16(11, 0x3333);
         mem.set_u8(13, register::R1 as u8);
 
@@ -1029,12 +1029,12 @@ mod tests {
     #[test]
     fn cal_reg() {
         let mut mem = Memory::new(34);
-        mem.set_u8(0, instruction::MOVE_LIT_REG);
+        mem.set_u8(0, instruction::MOVE_LIT_REG.opcode);
         mem.set_u16(1, 10);
         mem.set_u8(3, register::R1 as u8);
-        mem.set_u8(4, instruction::CAL_REG);
+        mem.set_u8(4, instruction::CAL_REG.opcode);
         mem.set_u8(5, register::R1 as u8);
-        mem.set_u8(10, instruction::MOVE_LIT_REG);
+        mem.set_u8(10, instruction::MOVE_LIT_REG.opcode);
         mem.set_u16(11, 0x3333);
         mem.set_u8(13, register::R2 as u8);
 

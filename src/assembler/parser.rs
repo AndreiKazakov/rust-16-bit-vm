@@ -1,3 +1,4 @@
+use crate::cpu::instruction::Instruction;
 use crate::parser_combinator::core::{ParseError, Parser, ParserState};
 use crate::parser_combinator::string;
 
@@ -155,56 +156,6 @@ pub fn register<'a>() -> Parser<'a, str, Type> {
     .map(Type::Register)
 }
 
-#[derive(Eq, PartialEq, Debug, Copy, Clone)]
-pub enum Instruction {
-    MoveLitReg,
-    MoveLitOffReg,
-    MoveRegReg,
-    MoveRegPtrReg,
-    MoveMemReg,
-    MoveRegMem,
-    MoveLitMem,
-    AddLitReg,
-    AddRegReg,
-    SubLitReg,
-    SubRegReg,
-    SubRegLit,
-    MulLitReg,
-    MulRegReg,
-    LsfRegLit,
-    LsfRegReg,
-    RsfRegLit,
-    RsfRegReg,
-    AndLitReg,
-    AndRegReg,
-    OrLitReg,
-    OrRegReg,
-    XorLitReg,
-    XorRegReg,
-    IncReg,
-    DecReg,
-    NotReg,
-    JeqRegMem,
-    JeqLitMem,
-    JneRegMem,
-    JneLitMem,
-    JltRegMem,
-    JltLitMem,
-    JgtRegMem,
-    JgtLitMem,
-    JleRegMem,
-    JleLitMem,
-    JgeRegMem,
-    JgeLitMem,
-    PshLit,
-    PshReg,
-    PopReg,
-    CalLit,
-    CalReg,
-    Ret,
-    Hlt,
-}
-
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Type {
     Instruction0 {
@@ -240,7 +191,7 @@ pub enum Type {
 
 #[cfg(test)]
 mod tests {
-    use super::{Instruction, Operator, Type};
+    use super::{Operator, Type};
     use crate::parser_combinator::core::ParserState;
 
     #[test]

@@ -40,4 +40,6 @@ impl Device for Screen {
     fn len(&self) -> usize {
         unimplemented!()
     }
+
+    fn set_mb(&mut self, _: u16) {}
 }

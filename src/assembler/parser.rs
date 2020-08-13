@@ -169,6 +169,7 @@ pub fn register<'a>() -> Parser<'a, str, Type> {
         string::literal(String::from("R8")),
         string::literal(String::from("SP")),
         string::literal(String::from("FP")),
+        string::literal(String::from("MB")),
     ])
     .map(Type::Register)
 }

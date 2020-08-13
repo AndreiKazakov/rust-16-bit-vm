@@ -1,11 +1,13 @@
-pub mod instruction;
-pub mod register;
-use crate::device::memory::Memory;
-use crate::device::Device;
-use register::Register;
-
 #[cfg(test)]
 use std::collections::HashMap;
+
+use register::Register;
+
+use crate::device::memory::Memory;
+use crate::device::Device;
+
+pub mod instruction;
+pub mod register;
 
 pub struct CPU {
     memory: Box<dyn Device>,
@@ -39,6 +41,9 @@ impl CPU {
     }
 
     fn set_register(&mut self, reg: Register, value: u16) {
+        if reg == register::MB {
+            self.memory.set_mb(value)
+        }
         self.registers.set_u16(reg, value);
     }
 
@@ -403,11 +408,14 @@ impl CPU {
 
 #[cfg(test)]
 mod tests {
+    use crate::device::banked_memory::BankedMemory;
+    use crate::device::memory::Memory;
+    use crate::device::memory_mapper::MemoryMapper;
+    use crate::device::Device;
+
     use super::instruction;
     use super::register;
     use super::CPU;
-    use crate::device::memory::Memory;
-    use crate::device::Device;
 
     fn view_memory_at(mem: Memory, address: usize) {
         print!("{:X}:", address);
@@ -1044,5 +1052,27 @@ mod tests {
         cpu.step();
         let r2 = cpu.get_register(register::R2);
         assert_eq!(r2, 0x3333);
+    }
+
+    #[test]
+    fn banked_memory() {
+        let mut mm = MemoryMapper::new();
+        let mem = Memory::new(0xff00);
+        let mem_bank = BankedMemory::new(8, 256);
+
+        mm.map(Box::new(mem_bank), 0x0000, 0x00ff, false);
+        mm.map(Box::new(mem), 0x00ff, 0xffff, true);
+        let mut cpu = CPU::new(Box::new(mm));
+
+        cpu.memory.set_u8(123, 0x8);
+        assert_eq!(cpu.memory.get_u8(123), 0x8);
+
+        cpu.set_register(register::MB, 1);
+        assert_eq!(cpu.memory.get_u8(123), 0);
+        cpu.memory.set_u8(123, 0x80);
+        assert_eq!(cpu.memory.get_u8(123), 0x80);
+
+        cpu.set_register(register::MB, 0);
+        assert_eq!(cpu.memory.get_u8(123), 0x8);
     }
 }

@@ -1,3 +1,4 @@
+pub mod banked_memory;
 pub mod memory;
 pub mod memory_mapper;
 pub mod screen;
@@ -8,4 +9,5 @@ pub trait Device {
     fn set_u16(&mut self, address: usize, value: u16);
     fn set_u8(&mut self, address: usize, value: u8);
     fn len(&self) -> usize;
+    fn set_mb(&mut self, mb: u16);
 }

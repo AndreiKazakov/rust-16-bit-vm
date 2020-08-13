@@ -5,9 +5,9 @@ pub struct Memory {
     memory: Box<[u8]>,
 }
 impl Memory {
-    pub fn new(size: usize) -> Memory {
+    pub fn new(size: u16) -> Memory {
         Memory {
-            memory: vec![0; size].into_boxed_slice(),
+            memory: vec![0; size as usize].into_boxed_slice(),
         }
     }
 }
@@ -29,6 +29,8 @@ impl Device for Memory {
     fn len(&self) -> usize {
         self.memory.len()
     }
+
+    fn set_mb(&mut self, _: u16) {}
 }
 
 #[cfg(test)]

@@ -16,6 +16,7 @@ impl MemoryMapper {
             regions: VecDeque::new(),
         }
     }
+
     pub fn map(&mut self, device: Box<dyn Device>, start: usize, end: usize, remap: bool) {
         let region = Region {
             device,
@@ -24,14 +25,6 @@ impl MemoryMapper {
             remap,
         };
         self.regions.push_front(region);
-        // || {
-        //     self.regions = self
-        //         .regions
-        //         .iter()
-        //         .cloned()
-        //         .filter(|&r| r.start == start)
-        //         .collect()
-        // }
     }
 
     fn find_region(&self, address: usize) -> &Region {
@@ -93,5 +86,11 @@ impl Device for MemoryMapper {
 
     fn len(&self) -> usize {
         0xffff
+    }
+
+    fn set_mb(&mut self, mb: u16) {
+        for region in self.regions.iter_mut() {
+            region.device.set_mb(mb)
+        }
     }
 }

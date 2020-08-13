@@ -69,6 +69,17 @@ pub fn hex_literal<'a>() -> Parser<'a, str, Type> {
         })
 }
 
+pub fn hex_literal8<'a>() -> Parser<'a, str, Type> {
+    string::character('$')
+        .right(string::hexadecimal())
+        .map(|hex| {
+            Type::HexLiteral8(
+                u8::from_str_radix(&hex, 16)
+                    .expect(&format!("Couldn't parse hexadecimal: {}", hex)),
+            )
+        })
+}
+
 fn operator<'a>() -> Parser<'a, str, Type> {
     Parser::one_of(vec![
         string::character('+'),
@@ -92,6 +103,12 @@ pub fn address<'a>() -> Parser<'a, str, Type> {
                     .expect(&format!("Couldn't parse hexadecimal: {}", hex)),
             )
         })
+}
+
+pub fn label<'a>() -> Parser<'a, str, Type> {
+    string::alphabetic()
+        .left(string::character(':'))
+        .map(Type::Label)
 }
 
 fn variable<'a>() -> Parser<'a, str, Type> {
@@ -183,10 +200,12 @@ pub enum Type {
     },
     Ignored,
     HexLiteral(u16),
+    HexLiteral8(u8),
     Address(u16),
     Variable(String),
     Register(String),
     Operator(Operator),
+    Label(String),
 }
 
 #[cfg(test)]
@@ -223,6 +242,17 @@ mod tests {
             Ok(ParserState {
                 index: 4,
                 result: Type::Variable(String::from("aaj")),
+            })
+        )
+    }
+
+    #[test]
+    fn label() {
+        assert_eq!(
+            super::label().parse("bla:"),
+            Ok(ParserState {
+                index: 4,
+                result: Type::Label(String::from("bla")),
             })
         )
     }

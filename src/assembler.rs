@@ -1,8 +1,10 @@
+use std::collections::HashMap;
+
 use formats::{
-    lit, lit_mem, lit_off_reg, lit_reg, mem_reg, no_arg, reg, reg_lit, reg_mem, reg_ptr_reg,
-    reg_reg,
+    lit, lit_mem, lit_off_reg, lit_reg, mem_reg, no_arg, reg, reg_lit, reg_lit8, reg_mem,
+    reg_ptr_reg, reg_reg,
 };
-use parser::Type;
+use parser::{label, Type};
 
 use crate::cpu::instruction;
 use crate::cpu::register::get_from_string;
@@ -14,23 +16,43 @@ mod parser;
 
 pub fn compile(code: &str) -> Vec<u8> {
     match assembly_parser().parse(code) {
-        Ok(ParserState { result, .. }) => {
-            let mut res = vec![];
-            for t in result {
-                res.extend(encode(&t))
+        Ok(ParserState { result, index }) => {
+            if code.len() != index {
+                panic!("Could not parse from index {}", index);
             }
+            let mut res = vec![];
+            let mut labels = HashMap::new();
+            let mut current_address = 0;
+
+            for t in &result {
+                match t {
+                    Type::Label(label) => {
+                        labels.insert(label, current_address);
+                    }
+                    Type::Instruction0 { instruction, .. } => current_address += instruction.size,
+                    Type::Instruction1 { instruction, .. } => current_address += instruction.size,
+                    Type::Instruction2 { instruction, .. } => current_address += instruction.size,
+                    Type::Instruction3 { instruction, .. } => current_address += instruction.size,
+                    _ => panic!("Unexpected instruction on top level: {:?}", t),
+                }
+            }
+
+            for t in &result {
+                res.extend(encode(t, &labels))
+            }
+
             res
         }
         Err(err) => panic!("Could not compile: {}", err.message),
     }
 }
 
-fn encode(t: &Type) -> Vec<u8> {
+fn encode(t: &Type, labels: &HashMap<&String, u16>) -> Vec<u8> {
     match t {
         Type::Instruction0 { instruction } => vec![instruction.opcode],
         Type::Instruction1 { instruction, arg0 } => {
             let mut res = vec![instruction.opcode];
-            res.extend(encode(arg0));
+            res.extend(encode(arg0, labels));
             res
         }
         Type::Instruction2 {
@@ -39,8 +61,8 @@ fn encode(t: &Type) -> Vec<u8> {
             arg1,
         } => {
             let mut res = vec![instruction.opcode];
-            res.extend(encode(arg0));
-            res.extend(encode(arg1));
+            res.extend(encode(arg0, labels));
+            res.extend(encode(arg1, labels));
             res
         }
         Type::Instruction3 {
@@ -50,18 +72,20 @@ fn encode(t: &Type) -> Vec<u8> {
             arg2,
         } => {
             let mut res = vec![instruction.opcode];
-            res.extend(encode(arg0));
-            res.extend(encode(arg1));
-            res.extend(encode(arg2));
+            res.extend(encode(arg0, labels));
+            res.extend(encode(arg1, labels));
+            res.extend(encode(arg2, labels));
             res
         }
         Type::BinaryOperation { .. } => panic!("Not supported yet"),
         Type::Ignored => panic!("ignored node was left after processing"),
         Type::HexLiteral(val) => val.to_be_bytes().to_vec(),
+        Type::HexLiteral8(val) => vec![*val],
         Type::Address(val) => val.to_be_bytes().to_vec(),
-        Type::Variable(_) => panic!("Not supported yet"),
+        Type::Variable(name) => labels[name].to_be_bytes().to_vec(),
         Type::Register(val) => vec![get_from_string(val) as u8],
         Type::Operator(_) => panic!("Not supported yet"),
+        Type::Label(_) => Vec::with_capacity(0),
     }
 }
 
@@ -74,6 +98,7 @@ fn assembly_parser<'a>() -> Parser<'a, str, Vec<Type>> {
 
 fn assembly_instruction<'a>() -> Parser<'a, str, Type> {
     Parser::one_of(vec![
+        label(),
         mov(),
         add(),
         sub(),
@@ -136,14 +161,14 @@ fn mul<'a>() -> Parser<'a, str, Type> {
 
 fn lsf<'a>() -> Parser<'a, str, Type> {
     Parser::one_of(vec![
-        reg_lit("lsf", instruction::LSF_REG_LIT8),
+        reg_lit8("lsf", instruction::LSF_REG_LIT8),
         reg_reg("lsf", instruction::LSF_REG_REG),
     ])
 }
 
 fn rsf<'a>() -> Parser<'a, str, Type> {
     Parser::one_of(vec![
-        reg_lit("rsf", instruction::RSF_REG_LIT8),
+        reg_lit8("rsf", instruction::RSF_REG_LIT8),
         reg_reg("rsf", instruction::RSF_REG_REG),
     ])
 }
@@ -260,6 +285,15 @@ mod tests {
                 0x10, 0x42, 0, 4, 0x12, 4, 0xaa, 0xaa, 0x10, 0x10, 0, 4, 0x13, 0xAA, 0xAA, 6, 0x14,
                 4, 6
             ]
+        )
+    }
+
+    #[test]
+    fn compile_with_labels() {
+        let input = "mov $2345 ACC\nstart:\njeq $4200 &[!start]\n";
+        assert_eq!(
+            super::compile(input),
+            vec![0x10, 0x23, 0x45, 0x02, 0x52, 0x42, 0x00, 0x00, 0x04]
         )
     }
 

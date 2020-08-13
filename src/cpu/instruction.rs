@@ -3,21 +3,21 @@
 #[derive(Eq, PartialEq, Debug, Copy, Clone)]
 pub struct Instruction {
     pub opcode: u8,
-    size: u8,
+    pub size: u16,
 }
 
-const LIT_REG: u8 = 4;
-const REG_LIT: u8 = 4;
-const REG_LIT8: u8 = 3;
-const REG_REG: u8 = 3;
-const REG_MEM: u8 = 4;
-const MEM_REG: u8 = 4;
-const LIT_MEM: u8 = 5;
-const REG_PTR_REG: u8 = 3;
-const LIT_OFF_REG: u8 = 5;
-const NONE: u8 = 1;
-const REG: u8 = 2;
-const LIT: u8 = 3;
+const LIT_REG: u16 = 4;
+const REG_LIT: u16 = 4;
+const REG_LIT8: u16 = 3;
+const REG_REG: u16 = 3;
+const REG_MEM: u16 = 4;
+const MEM_REG: u16 = 4;
+const LIT_MEM: u16 = 5;
+const REG_PTR_REG: u16 = 3;
+const LIT_OFF_REG: u16 = 5;
+const NONE: u16 = 1;
+const REG: u16 = 2;
+const LIT: u16 = 3;
 
 pub const MOVE_LIT_MEM: Instruction = Instruction {
     opcode: 0x09,

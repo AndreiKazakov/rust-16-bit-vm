@@ -1,4 +1,6 @@
-use super::parser::{address, hex_literal, register, square_bracket_expression, Type};
+use super::parser::{
+    address, hex_literal, hex_literal8, register, square_bracket_expression, Type,
+};
 use crate::cpu::instruction::Instruction;
 use crate::parser_combinator::core::Parser;
 use crate::parser_combinator::string;
@@ -8,6 +10,10 @@ pub fn lit_reg<'a>(command: &str, instruction: Instruction) -> Parser<'a, str, T
 }
 
 pub fn reg_lit<'a>(command: &str, instruction: Instruction) -> Parser<'a, str, Type> {
+    instruction2(instruction, com(command), register(), hex_or_exp())
+}
+
+pub fn reg_lit8<'a>(command: &str, instruction: Instruction) -> Parser<'a, str, Type> {
     instruction2(instruction, com(command), register(), hex_or_exp())
 }
 
@@ -80,6 +86,10 @@ fn instruction2<'a>(
 
 fn hex_or_exp<'a>() -> Parser<'a, str, Type> {
     Parser::one_of(vec![hex_literal(), square_bracket_expression()])
+}
+
+fn hex8_or_exp<'a>() -> Parser<'a, str, Type> {
+    Parser::one_of(vec![hex_literal8(), square_bracket_expression()])
 }
 
 fn address_or_exp<'a>() -> Parser<'a, str, Type> {

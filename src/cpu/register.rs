@@ -12,8 +12,9 @@ pub const R7: usize = 16;
 pub const R8: usize = 18;
 pub const SP: usize = 20;
 pub const FP: usize = 22;
-pub const MB: usize = 24;
-pub const LIST: [usize; 13] = [IP, ACC, R1, R2, R3, R4, R5, R6, R7, R8, SP, FP, MB];
+pub const MB: usize = 24; // Memory bank
+pub const IM: usize = 26; // Interrupt mask
+pub const LIST: [usize; 14] = [IP, ACC, R1, R2, R3, R4, R5, R6, R7, R8, SP, FP, MB, IM];
 pub const GENERAL_PURPOSE_LIST: [usize; 8] = [R1, R2, R3, R4, R5, R6, R7, R8];
 pub const SIZE: u16 = LIST.len() as u16 * 2;
 
@@ -32,6 +33,7 @@ pub fn get_from_string(s: &str) -> usize {
         "SP" => SP,
         "FP" => FP,
         "MB" => FP,
+        "IM" => IM,
         x => panic!("Unrecognized register {}", x),
     }
 }

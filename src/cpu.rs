@@ -13,7 +13,10 @@ pub struct CPU {
     memory: Box<dyn Device>,
     registers: Memory,
     stack_frame_size: u16,
+    isInInterruptHandler: bool,
 }
+
+const INTERRUPT_VECTOR_ADDRESS: usize = 0x1000;
 
 impl CPU {
     pub fn new(memory: Box<dyn Device>) -> CPU {
@@ -21,9 +24,11 @@ impl CPU {
             memory,
             registers: Memory::new(register::SIZE),
             stack_frame_size: 0,
+            isInInterruptHandler: false,
         };
         cpu.set_register(register::SP, cpu.memory.len() as u16 - 2);
         cpu.set_register(register::FP, cpu.memory.len() as u16 - 2);
+        cpu.set_register(register::IM, 0xff);
         cpu
     }
 
@@ -117,8 +122,31 @@ impl CPU {
         self.set_register(register::FP, frame_pointer_address + stack_frame_size);
     }
 
+    fn handle_interrupt(&mut self, value: u16) {
+        if (1 << value) & self.get_register(register::IM) == 0 {
+            return;
+        }
+        let address_pointer = INTERRUPT_VECTOR_ADDRESS + (value as usize) * 2;
+        let address = self.memory.get_u16(address_pointer);
+
+        if !self.isInInterruptHandler {
+            self.push_state();
+        }
+
+        self.isInInterruptHandler = true;
+        self.set_register(register::IP, address)
+    }
+
     fn execute(&mut self, instruction: u8) -> bool {
         match instruction {
+            x if x == instruction::INT.opcode => {
+                let value = self.fetch16();
+                self.handle_interrupt(value);
+            }
+            x if x == instruction::RET_INT.opcode => {
+                self.isInInterruptHandler = false;
+                self.pop_from_stack();
+            }
             x if x == instruction::MOVE_LIT_MEM.opcode => {
                 let value = self.fetch16();
                 let mem = self.fetch16();

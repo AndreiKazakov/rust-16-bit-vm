@@ -19,6 +19,15 @@ const NONE: u16 = 1;
 const REG: u16 = 2;
 const LIT: u16 = 3;
 
+pub const INT: Instruction = Instruction {
+    opcode: 0x00,
+    size: LIT,
+};
+pub const RET_INT: Instruction = Instruction {
+    opcode: 0x01,
+    size: NONE,
+};
+
 pub const MOVE_LIT_MEM: Instruction = Instruction {
     opcode: 0x09,
     size: LIT_MEM,

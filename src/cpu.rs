@@ -13,7 +13,7 @@ pub struct CPU {
     memory: Box<dyn Device>,
     registers: Memory,
     stack_frame_size: u16,
-    isInInterruptHandler: bool,
+    is_in_interrupt_handler: bool,
 }
 
 const INTERRUPT_VECTOR_ADDRESS: usize = 0x1000;
@@ -24,7 +24,7 @@ impl CPU {
             memory,
             registers: Memory::new(register::SIZE),
             stack_frame_size: 0,
-            isInInterruptHandler: false,
+            is_in_interrupt_handler: false,
         };
         cpu.set_register(register::SP, cpu.memory.len() as u16 - 2);
         cpu.set_register(register::FP, cpu.memory.len() as u16 - 2);
@@ -129,11 +129,11 @@ impl CPU {
         let address_pointer = INTERRUPT_VECTOR_ADDRESS + (value as usize) * 2;
         let address = self.memory.get_u16(address_pointer);
 
-        if !self.isInInterruptHandler {
+        if !self.is_in_interrupt_handler {
             self.push_state();
         }
 
-        self.isInInterruptHandler = true;
+        self.is_in_interrupt_handler = true;
         self.set_register(register::IP, address)
     }
 
@@ -144,7 +144,7 @@ impl CPU {
                 self.handle_interrupt(value);
             }
             x if x == instruction::RET_INT.opcode => {
-                self.isInInterruptHandler = false;
+                self.is_in_interrupt_handler = false;
                 self.pop_from_stack();
             }
             x if x == instruction::MOVE_LIT_MEM.opcode => {
